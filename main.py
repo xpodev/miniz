@@ -1,7 +1,7 @@
-from miniz.function import Function, Parameter
+from miniz.concrete.function import Function, Parameter
 from miniz.type_system import Boolean, Type
 
-fn = Function(None, "foo")
+fn = Function("foo")
 print(fn)
 
 fn.name = None

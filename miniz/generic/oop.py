@@ -1,11 +1,11 @@
-from typing import TypeVar, Callable, TypeAlias
+from typing import TypeVar, Callable
 
 from miniz.generic.generic_construction import IConstructor
 from miniz.generic.function import GenericFunction
 from miniz.generic.signature import GenericParameter, GenericSignature, GenericArguments
-from miniz.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface
-from miniz.scope import Scope
-from miniz.signature import Parameter, Signature
+from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, Member
+from miniz.concrete.signature import Parameter, Signature
+from miniz.interfaces.oop import IField, IMethod, IProperty, IOOPDefinition
 from miniz.type_system import ImplementsType, ObjectProtocol, Any
 from utils import NotifyingList
 
@@ -32,30 +32,21 @@ def order_arguments(args: GenericArguments, signature: Signature | GenericSignat
     return tuple(ordered)
 
 
-class Member:
-    name: str | None
-    binding: Binding
-    owner: "GenericClass | None"
-
-    def __init__(self, name: str | None, binding: Binding = Binding.Instance):
-        self.name = name
-        self.binding = binding
-
-
-class GenericField(IConstructor[Field], Member):
-    type: ImplementsType | Parameter | GenericParameter
+class GenericField(Member, IConstructor[Field], IField):
+    field_type: ImplementsType | Parameter | GenericParameter
     default_value: ObjectProtocol | None
     access: Access
 
     def __init__(self, name: str, type: ImplementsType | Parameter | GenericParameter = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
                  access: Access = Access.ReadWrite):
-        super().__init__(name, binding)
-        self.type = type
+        Member.__init__(self, name, binding)
+        IField.__init__(self)
+        self.field_type = type
         self.default_value = default_value
         self.access = access
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> "Field | GenericField":
-        type = args.get(self.type, self.type.construct(args) if isinstance(self.type, GenericParameter) else self.type)
+        type = args.get(self.field_type, self.field_type.construct(args) if isinstance(self.field_type, GenericParameter) else self.field_type)
         default_value = self.default_value  # todo: generic eval default value
 
         if isinstance(type, (GenericParameter, Parameter)):
@@ -80,16 +71,17 @@ class GenericField(IConstructor[Field], Member):
             case _:
                 raise ValueError(self.access)
         return f"{declare} {self.name}[{self.binding}]"
-        return f"{declare} {self.name}[{self.binding.name}]: {self.type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
+        return f"{declare} {self.name}[{self.binding.name}]: {self.field_type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class GenericMethod(GenericFunction, Member):
-    def __init__(self, lexical_scope: Scope | None, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any, binding: Binding = Binding.Instance):
-        GenericFunction.__init__(self, lexical_scope, name, return_type)
+class GenericMethod(GenericFunction, IMethod, Member):
+    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any, binding: Binding = Binding.Instance):
+        GenericFunction.__init__(self, name, return_type)
+        IMethod.__init__(self)
         Member.__init__(self, name, binding)
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> "Method | GenericMethod":
-        result = super().construct(args, Method, GenericMethod)
+        result = super().construct(args, factory=Method, generic_factory=GenericMethod)
 
         result.binding = self.binding
 
@@ -99,16 +91,18 @@ class GenericMethod(GenericFunction, Member):
         return f"{self.signature} [{self.binding.name}] {{}}"
 
 
-class GenericProperty(IConstructor[Property], Member):
-    type: ImplementsType | Parameter | GenericParameter
+class GenericProperty(Member, IConstructor[Property], IProperty):
+    property_type: ImplementsType | Parameter | GenericParameter
     default_value: ObjectProtocol | None
 
     _getter: GenericMethod | None
     _setter: GenericMethod | None
 
     def __init__(self, name: str, type: ImplementsType | Parameter | GenericParameter = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
-        super().__init__(name, binding)
-        self.type = type
+        Member.__init__(self, name, binding)
+        IProperty.__init__(self)
+
+        self.property_type = type
         self.default_value = default_value
 
         self._getter = self._setter = None
@@ -134,7 +128,7 @@ class GenericProperty(IConstructor[Property], Member):
         self._setter = value
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> Property:
-        type = args.get(self.type, self.type.construct(args) if isinstance(self.type, GenericParameter) else self.type)
+        type = args.get(self.property_type, self.property_type.construct(args) if isinstance(self.property_type, GenericParameter) else self.property_type)
         default_value = self.default_value  # todo: generic eval default value
 
         if isinstance(type, (Parameter, GenericParameter)):
@@ -148,11 +142,11 @@ class GenericProperty(IConstructor[Property], Member):
         return result
 
     def __repr__(self):
-        return f"let {self.name}[{self.binding.name}]: {self.type} => {{{f' get = {self._getter.name};' if self._getter else ''}{f' set = {self._setter.name};' if self._setter else ''} }}" + (
+        return f"let {self.name}[{self.binding.name}]: {self.property_type} => {{{f' get = {self._getter.name};' if self._getter else ''}{f' set = {self._setter.name};' if self._setter else ''} }}" + (
             f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class GenericOOPObject(IConstructor["ConstructedClass | ConstructedInterface | ConstructedTypeclass"]):
+class GenericOOPObject(IOOPDefinition, IConstructor["ConstructedClass | ConstructedInterface | ConstructedTypeclass"]):
     _members: dict[str, Member]
     _member_list: list[Member]
 
@@ -169,6 +163,8 @@ class GenericOOPObject(IConstructor["ConstructedClass | ConstructedInterface | C
     arguments: dict[Parameter | GenericParameter, Parameter | GenericParameter | ObjectProtocol]
 
     def __init__(self, name_or_signature: str | Signature | GenericSignature, constructor: "GenericClass" = None, arguments: GenericArguments = None):
+        super().__init__()
+
         if name_or_signature is None or isinstance(name_or_signature, str):
             self._signature = GenericSignature(name_or_signature)
         else:
@@ -192,7 +188,7 @@ class GenericOOPObject(IConstructor["ConstructedClass | ConstructedInterface | C
         self._properties = NotifyingList()
         self._constructors = NotifyingList()
 
-        self._nested_classes_and_interfaces = NotifyingList()
+        self._nested_definitions = NotifyingList()
 
         def on_add_member(ms, member: Member):
             if ms is self._constructors:
@@ -223,21 +219,21 @@ class GenericOOPObject(IConstructor["ConstructedClass | ConstructedInterface | C
         self._properties.append += on_add_member
         self._constructors.append += on_add_member
 
-        self._nested_classes_and_interfaces.append += on_add_member
+        self._nested_definitions.append += on_add_member
 
         self._fields.pop += on_remove_member
         self._methods.pop += on_remove_member
         self._properties.pop += on_remove_member
         self._constructors.pop += on_remove_member
 
-        self._nested_classes_and_interfaces.pop += on_remove_member
+        self._nested_definitions.pop += on_remove_member
 
         self._fields.remove += on_remove_member
         self._methods.remove += on_remove_member
         self._properties.remove += on_remove_member
         self._constructors.remove += on_remove_member
 
-        self._nested_classes_and_interfaces.remove += on_remove_member
+        self._nested_definitions.remove += on_remove_member
 
         self.on_add_member = on_add_member
         self.on_remove_member = on_remove_member
@@ -343,7 +339,7 @@ class GenericClass(GenericOOPObject, ImplementsType):
 
     _interfaces: list["GenericInterface | Interface"]
 
-    _nested_classes_and_interfaces: NotifyingList["GenericNestedClass | GenericNestedInterface | NestedClass | NestedInterface"]
+    _nested_definitions: NotifyingList["GenericNestedClass | GenericNestedInterface | NestedClass | NestedInterface"]
 
     def __init__(self, name_or_signature: str | Signature | GenericSignature, base: "Class | GenericClass | ConstructedClass | None" = None, constructor: "GenericClass" = None,
                  arguments: GenericArguments = None):
@@ -353,11 +349,11 @@ class GenericClass(GenericOOPObject, ImplementsType):
 
         self._interfaces = []
 
-        self._nested_classes_and_interfaces = NotifyingList()
+        self._nested_definitions = NotifyingList()
 
-        self._nested_classes_and_interfaces.append += self.on_add_member
-        self._nested_classes_and_interfaces.pop += self.on_remove_member
-        self._nested_classes_and_interfaces.remove += self.on_remove_member
+        self._nested_definitions.append += self.on_add_member
+        self._nested_definitions.pop += self.on_remove_member
+        self._nested_definitions.remove += self.on_remove_member
 
     @property
     def base(self):
@@ -372,8 +368,8 @@ class GenericClass(GenericOOPObject, ImplementsType):
         return self._interfaces
 
     @property
-    def nested_classes_and_interfaces(self):
-        return self._nested_classes_and_interfaces
+    def nested_definitions(self):
+        return self._nested_definitions
 
     def assignable_to(self, target: ImplementsType) -> bool:
         return target is self
@@ -419,11 +415,11 @@ class GenericClass(GenericOOPObject, ImplementsType):
         for interface in interfaces:
             result.interfaces.append(interface)
 
-        for nested_class_or_interface in self._nested_classes_and_interfaces:
+        for nested_class_or_interface in self._nested_definitions:
             if isinstance(nested_class_or_interface, IConstructor):
-                result.nested_classes_and_interfaces.append(nested_class_or_interface.construct(args, **kwargs))
+                result.nested_definitions.append(nested_class_or_interface.construct(args, **kwargs))
             else:
-                result.nested_classes_and_interfaces.append(nested_class_or_interface)
+                result.nested_definitions.append(nested_class_or_interface)
 
         return result
 
@@ -448,11 +444,11 @@ class GenericInterface(GenericOOPObject):
 
         self._bases = []
 
-        self._nested_classes_and_interfaces = NotifyingList()
+        self._nested_definitions = NotifyingList()
 
-        self._nested_classes_and_interfaces.append += self.on_add_member
-        self._nested_classes_and_interfaces.pop += self.on_remove_member
-        self._nested_classes_and_interfaces.remove += self.on_remove_member
+        self._nested_definitions.append += self.on_add_member
+        self._nested_definitions.pop += self.on_remove_member
+        self._nested_definitions.remove += self.on_remove_member
 
     @property
     def bases(self):
@@ -460,7 +456,7 @@ class GenericInterface(GenericOOPObject):
 
     @property
     def nested_classes_and_interfaces(self):
-        return self._nested_classes_and_interfaces
+        return self._nested_definitions
 
     def construct(
             self,
@@ -483,11 +479,11 @@ class GenericInterface(GenericOOPObject):
         for base in bases:
             result.bases.append(base)
 
-        for nested_class_or_interface in self._nested_classes_and_interfaces:
-            if isinstance(nested_class_or_interface, IConstructor):
-                result.nested_classes_and_interfaces.append(nested_class_or_interface.construct(args, **kwargs))
+        for nested_definition in self._nested_definitions:
+            if isinstance(nested_definition, IConstructor):
+                result.nested_definitions.append(nested_definition.construct(args, **kwargs))
             else:
-                result.nested_classes_and_interfaces.append(nested_class_or_interface)
+                result.nested_definitions.append(nested_definition)
 
         return result
 
@@ -554,9 +550,10 @@ class ConstructedClass(Class):
 
 
 class ConstructedInterface(Interface):
-    def __init__(self, name: str, constructor: GenericInterface):
+    def __init__(self, name: str, constructor: GenericInterface, arguments: dict[Parameter | GenericParameter, ImplementsType | Parameter | GenericParameter]):
         super().__init__(name)
         self.constructor = constructor
+        self.args = arguments
 
 
 class ConstructedTypeclass(Typeclass):

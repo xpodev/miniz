@@ -1,16 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from miniz.function import Function
-from miniz.scope import Scope
-from miniz.type_system import ImplementsType, ObjectProtocol, Any, TypeProtocol
+import miniz.ownership
+from miniz.concrete.function import Function
+from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass
+from miniz.core import ImplementsType, ObjectProtocol, TypeProtocol
 from utils import NotifyingList
-
-
-class Binding(Enum):
-    Static = "Static"
-    Class = "Class"
-    Instance = "Instance"
 
 
 class Access(Enum):
@@ -19,26 +14,29 @@ class Access(Enum):
     Constant = "Constant"
 
 
-class Member:
-    name: str | None
-    binding: Binding
-    owner: "Class | Interface | Typeclass | None"
-
+class Member(IOOPMember):
     def __init__(self, name: str | None, binding: Binding = Binding.Instance):
+        super().__init__()
         self.name = name
         self.binding = binding
 
 
-class Field(Member):
-    type: ImplementsType
+class Field(Member, IField):
+    field_type: ImplementsType
     default_value: ObjectProtocol | None
     access: Access
 
-    def __init__(self, name: str, type: ImplementsType = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance, access: Access = Access.ReadWrite):
+    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance, access: Access = Access.ReadWrite):
         super().__init__(name, binding)
-        self.type = type
+        self.field_type = type
         self.default_value = default_value
         self.access = access
+
+    @property
+    def index(self):
+        if self.owner is None:
+            raise ValueError(f"Field {self} doesn't have an owner")
+        return self.owner.fields.index(self)
 
     def __repr__(self):
         match self.access:
@@ -51,27 +49,29 @@ class Field(Member):
             case _:
                 raise ValueError(self.access)
         return f"{declare} {self.name}[{self.binding.name}]"
-        return f"{declare} {self.name}[{self.binding.name}]: {self.type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
+        # return f"{declare} {self.name}[{self.binding.name}]: {self.type.reference_representation()}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class Method(Function, Member):
-    def __init__(self, lexical_scope: Scope | None, name: str = None, return_type: ImplementsType = Any, binding: Binding = Binding.Instance):
-        Function.__init__(self, lexical_scope, name, return_type)
+class Method(Function, Member, IMethod):
+    def __init__(self, name: str = None, return_type: ImplementsType = None, binding: Binding = Binding.Instance):
+        Function.__init__(self, name, return_type)
         Member.__init__(self, name, binding)
+        IMethod.__init__(self)
 
-    def __repr__(self):
-        return f"{self.signature} [{self.binding.name}] {{}}"
+    # def __repr__(self):
+    #     return f"{self.signature} [{self.binding.name}] {{}}"
 
 
-class Property(Member):
+class Property(Member, IProperty):
     type: ImplementsType
     default_value: ObjectProtocol | None
 
     _getter: Method | None
     _setter: Method | None
 
-    def __init__(self, name: str, type: ImplementsType = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
+    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
         super().__init__(name, binding)
+        IProperty.__init__(self)
         self.type = type
         self.default_value = default_value
 
@@ -102,7 +102,9 @@ class Property(Member):
             f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class Class(TypeProtocol):
+class Class(IClass, TypeProtocol):
+    as_member: miniz.ownership.Member["Class"]
+
     name: str | None
 
     _members: dict[str, Member]
@@ -116,11 +118,10 @@ class Class(TypeProtocol):
     _properties: NotifyingList[Property]
     _constructors: NotifyingList[Method]
 
-    # _constructor: GenericOverload[Method]  todo
-
     _nested_classes_and_interfaces: NotifyingList["NestedClass | NestedInterface"]
 
     def __init__(self, name: str | None = None):
+        super().__init__()
         self.name = name
 
         self._members = {}
@@ -194,6 +195,10 @@ class Class(TypeProtocol):
         return self._interfaces
 
     @property
+    def specifications(self):
+        return self._interfaces
+
+    @property
     def fields(self):
         return self._fields
 
@@ -210,7 +215,7 @@ class Class(TypeProtocol):
         return self._constructors
 
     @property
-    def nested_classes_and_interfaces(self):
+    def nested_definitions(self):
         return self._nested_classes_and_interfaces
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
@@ -237,18 +242,18 @@ class Class(TypeProtocol):
     def __repr__(self):
         return f"class {self.name or '{Anonymous}'}"
 
-        declaration = \
-            f"class{(' ' + self.name) if self.name else ''} " \
-            f"{(f'< ' + ', '.join(base.name for base in [*((self._base,) if self._base is not None else ()), *self._interfaces]) + ' ') if self.base is not None or self._interfaces else ''}{{ "
+        # declaration = \
+        #     f"class{(' ' + self.name) if self.name else ''} " \
+        #     f"{(f'< ' + ', '.join(base.name for base in [*((self._base,) if self._base is not None else ()), *self._interfaces]) + ' ') if self.base is not None or self._interfaces else ''}{{ "
+        #
+        # members = "".join(map(lambda m: "\n\t" + repr(m), self._member_list))
+        #
+        # if members:
+        #     return declaration + members + "\n}"
+        # return declaration + '}'
 
-        members = "".join(map(lambda m: "\n\t" + repr(m), self._member_list))
 
-        if members:
-            return declaration + members + "\n}"
-        return declaration + '}'
-
-
-class Interface:
+class Interface(IInterface):
     name: str | None
 
     _members: dict[str, Member]
@@ -263,9 +268,10 @@ class Interface:
 
     # _constructor: GenericOverload[Method]  todo
 
-    _nested_classes_and_interfaces: NotifyingList["NestedClass"]
+    _nested_classes_and_interfaces: NotifyingList["Class"]
 
     def __init__(self, name: str | None = None):
+        super().__init__()
         self.name = name
 
         self._members = {}
@@ -369,7 +375,7 @@ class TypeclassImplementation:
         return f"typeclass {self.typeclass.name}({self.type.name if isinstance(self.type, (Class, Interface, Typeclass)) else self.type});"
 
 
-class Typeclass:
+class Typeclass(ITypeclass):
     name: str | None
 
     _members: dict[str, Member]
@@ -387,6 +393,7 @@ class Typeclass:
     # _constructor: GenericOverload[Method]  todo
 
     def __init__(self, name: str | None = None):
+        super().__init__()
         self.name = name
 
         self._members = {}
@@ -479,38 +486,6 @@ class Typeclass:
         return declaration + '}'
 
 
-class NestedClass(Class, Member):
-    def __init__(self, name: str | None):
-        Class.__init__(self, name)
-        Member.__init__(self, name, Binding.Static)
-
-    @property
-    def binding(self):
-        return super().binding
-
-    @binding.setter
-    def binding(self, value):
-        if value != Binding.Static:
-            raise ValueError(f"Nested classes may only have static binding for now")
-        self._binding = value
-
-
-class NestedInterface(Interface, Member):
-    def __init__(self, name: str | None):
-        Interface.__init__(self, name)
-        Member.__init__(self, name, Binding.Static)
-
-    @property
-    def binding(self):
-        return super().binding
-
-    @binding.setter
-    def binding(self, value):
-        if value != Binding.Static:
-            raise ValueError(f"Nested interfaces may only have static binding for now")
-        self._binding = value
-
-
 if __name__ == '__main__':
     from miniz.type_system import Void
 
@@ -518,7 +493,7 @@ if __name__ == '__main__':
 
     print(fieldA)
 
-    methodB = Method(None, "B")
+    methodB = Method("B")
 
     print(methodB)
 
@@ -547,7 +522,7 @@ if __name__ == '__main__':
     classFoo.properties.append(propertyC)
 
     try:
-        classFoo.methods.append(Method(None, "A"))
+        classFoo.methods.append(Method("A"))
     except ValueError as e:
         print("Exception", e.args)
     else:
@@ -557,20 +532,20 @@ if __name__ == '__main__':
 
     print(classFoo)
 
-    classBar = NestedClass("Bar")
+    classBar = Class("Bar")
 
     classBar.base = classFoo
 
     print(classBar)
 
-    classFoo.nested_classes_and_interfaces.append(classBar)
+    classFoo.nested_definitions.append(classBar)
 
     print(classFoo)
 
     interfaceIFoo = Interface("IFoo")
     interfaceIFoo.bases.append(interfaceIFoo)
 
-    interfaceIFoo.methods.append(Method(None, "do_foo", Void))
+    interfaceIFoo.methods.append(Method("do_foo", Void))
 
     print(interfaceIFoo)
 

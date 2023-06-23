@@ -1,18 +1,19 @@
 from typing import Callable, TypeVar
 
-from miniz.function import Function, FunctionBody
+from miniz.concrete.function import Function, FunctionBody, Local
 from miniz.generic.generic_construction import IConstructor
 from miniz.generic.function_signature import GenericFunctionSignature
 from miniz.generic.signature import GenericParameter
-from miniz.scope import Scope
-from miniz.signature import Parameter
+from miniz.concrete.signature import Parameter
+from miniz.interfaces.function import IFunction
 from miniz.type_system import ImplementsType, Any, ObjectProtocol
+from utils import NotifyingList
 
 _T = TypeVar("_T")
 _GenericT = TypeVar("_GenericT")
 
 
-class GenericFunction(IConstructor[Function]):
+class GenericFunction(IFunction, IConstructor[Function]):
     """
     Represents a generic Z# function. This object should not be exposed to the Z# environment.
 
@@ -22,12 +23,14 @@ class GenericFunction(IConstructor[Function]):
     signature: GenericFunctionSignature
     body: FunctionBody  # todo: GenericFunctionBody
 
-    lexical_scope: Scope
+    _locals: NotifyingList[Local]
 
-    def __init__(self, lexical_scope: Scope | None, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any):
+    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any):
         self.signature = GenericFunctionSignature(name, return_type)
-        self.lexical_scope = lexical_scope
+        super().__init__(name)
+
         self.body = FunctionBody(self)
+        self._locals = NotifyingList()
 
     @property
     def name(self):
@@ -36,6 +39,10 @@ class GenericFunction(IConstructor[Function]):
     @name.setter
     def name(self, value: str):
         self.signature.name = value
+
+    @property
+    def locals(self):
+        return self._locals
 
     @property
     def positional_parameters(self):
@@ -72,15 +79,15 @@ class GenericFunction(IConstructor[Function]):
     def construct(
             self,
             args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
-            factory: Callable[[Scope], _T | Function] = None,
-            generic_factory: Callable[[Scope], "_GenericT | GenericFunction"] = None
+            factory: Callable[[], _T | Function] = None,
+            generic_factory: Callable[[], "_GenericT | GenericFunction"] = None
     ) -> _T | _GenericT:
         signature = self.signature.construct(args)
 
         if isinstance(signature, IConstructor):
-            result = (generic_factory or GenericFunction)(self.lexical_scope)
+            result = (generic_factory or GenericFunction)()
         else:
-            result = (factory or Function)(self.lexical_scope)
+            result = (factory or Function)()
 
         result.signature = signature
 

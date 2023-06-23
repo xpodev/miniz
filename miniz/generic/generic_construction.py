@@ -1,6 +1,7 @@
 from typing import TypeVar, Generic, Callable
 
-from miniz.type_system import ObjectProtocol
+from miniz.core import ObjectProtocol
+from miniz.interfaces.signature import IParameter
 
 _T = TypeVar("_T")
 _U = TypeVar("_U")
@@ -25,3 +26,17 @@ class IConstructor(Generic[_T]):
             generic_factory: Callable[[], "IConstructor[_T]"] = None
     ) -> "_T | IConstructor[_T]":
         ...
+
+
+class IConstructed(Generic[_T]):
+    def __init__(self, constructor: IConstructor[_T], arguments: dict[IParameter, ObjectProtocol | IParameter]):
+        self._constructor = constructor
+        self._constructor_arguments = arguments
+
+    @property
+    def constructor(self) -> IConstructor[_T]:
+        return self._constructor
+
+    @property
+    def constructor_arguments(self) -> dict[IParameter, ObjectProtocol | IParameter]:
+        return self._constructor_arguments

@@ -2,8 +2,10 @@ from functools import partial
 from typing import Callable, TypeVar, TypeAlias
 
 from miniz.generic.generic_construction import IConstructor, recursive_resolve
-from miniz.signature import Signature, Parameter
-from miniz.type_system import Any, ObjectProtocol, ImplementsType
+from miniz.concrete.signature import Signature, Parameter
+from miniz.interfaces.signature import ISignature, IParameter
+from miniz.core import ObjectProtocol, ImplementsType
+from miniz.ownership import Owned
 from utils import NotifyingList, DependencyGraph
 
 _T = TypeVar("_T")
@@ -18,7 +20,7 @@ def get_parameter_dependencies(args: GenericArguments, parameter: "Parameter | G
     if isinstance(parameter, Parameter):
         return []
 
-    parameter_type = parameter.type
+    parameter_type = parameter.parameter_type
     if parameter in args and parameter_type in args:
         ...  # validate
     elif parameter in args:
@@ -33,18 +35,16 @@ def get_parameter_dependencies(args: GenericArguments, parameter: "Parameter | G
     return []
 
 
-class GenericParameter(IConstructor[Parameter]):
-    name: str
-    type: "ImplementsType | GenericParameter | Parameter"
+class GenericParameter(IConstructor[Parameter], IParameter, Owned["GenericSignature"]):
     default_value: ObjectProtocol | None
+    parameter_type: ImplementsType | IParameter
 
-    owner: "GenericSignature | None"
-
-    def __init__(self, name: str, type: "ImplementsType | GenericParameter | Parameter" = Any, default_value: ObjectProtocol = None):
+    def __init__(self, name: str, type: "ImplementsType | GenericParameter | Parameter" = None, default_value: ObjectProtocol = None):
+        super().__init__()
+        Owned.__init__(self)
         self.name = name
-        self.type = type
+        self.parameter_type = type
         self.default_value = default_value
-        self.owner = None
 
     @property
     def index(self):
@@ -68,12 +68,12 @@ class GenericParameter(IConstructor[Parameter]):
     def is_variadic_named(self):
         return self.owner.variadic_named_parameter is self
 
-    def construct(self, args: dict["Parameter | GenericParameter", "ObjectProtocol | Parameter | GenericParameter"], factory=None, generic_factory=None) -> "Parameter | GenericParameter":
+    def construct(self, args: dict["IParameter", "ObjectProtocol | IParameter"], factory=None, generic_factory=None) -> "IParameter":
         # if self.type is an actual type, skip infer and validation
         # if both self and self.type are in args, make sure they don't collide
         # if only self is in args, infer self.type and add it to args
         # if only self.type in args, construct normally
-        parameter_type = recursive_resolve(args, self.type)
+        parameter_type = recursive_resolve(args, self.parameter_type)
         default_value = self.default_value  # todo: generic eval default value
         if isinstance(parameter_type, (GenericParameter, Parameter)):
             result = (generic_factory or GenericParameter)(self.name, parameter_type, default_value)
@@ -82,10 +82,10 @@ class GenericParameter(IConstructor[Parameter]):
         return result
 
     def __repr__(self):
-        return f"{self.name}: {self.type.name if isinstance(self.type, (GenericParameter, Parameter)) else self.type}" + (f" = {self.default_value}" if self.default_value is not None else "")
+        return f"{self.name}: {self.parameter_type.name if isinstance(self.parameter_type, (GenericParameter, Parameter)) else self.parameter_type}" + (f" = {self.default_value}" if self.default_value is not None else "")
 
 
-class GenericSignature(IConstructor[Signature]):
+class GenericSignature(ISignature, IConstructor[Signature]):
     name: str | None
 
     _parameters: dict[str, GenericParameter | Parameter]
@@ -97,6 +97,7 @@ class GenericSignature(IConstructor[Signature]):
     _variadic_named_parameter: GenericParameter | Parameter | None
 
     def __init__(self, name: str = None):
+        ISignature.__init__(self)
         self.name = name
 
         self._parameters = {}
@@ -197,10 +198,10 @@ class GenericSignature(IConstructor[Signature]):
         build_order = self._get_build_order(args)
 
         def recursive_infer(p: GenericParameter):
-            if p in args and p.type not in args:
-                args[p.type] = args[p].runtime_type
-                if isinstance(p.type, GenericParameter):
-                    recursive_infer(p.type)
+            if p in args and p.parameter_type not in args:
+                args[p.parameter_type] = args[p].runtime_type
+                if isinstance(p.parameter_type, GenericParameter):
+                    recursive_infer(p.parameter_type)
 
         for parameter in args.copy():
             if isinstance(parameter, GenericParameter):
@@ -290,12 +291,12 @@ if __name__ == '__main__':
     generic = GenericSignature("bar")
 
     A, B, C, D, E, F = [Parameter("A"), *(GenericParameter(letter) for letter in "BCDEF")]
-    A.type = Type
-    B.type = A
-    C.type = B
-    D.type = C
-    E.type = D
-    F.type = E
+    A.parameter_type = Type
+    B.parameter_type = A
+    C.parameter_type = B
+    D.parameter_type = C
+    E.parameter_type = D
+    F.parameter_type = E
 
     for p in [A, B, C, D, E, F]:
         generic.named_parameters.append(p)

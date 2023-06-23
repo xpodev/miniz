@@ -6,3 +6,6 @@ class Instruction:
     """
 
     index: int
+
+    op_code: str
+    operands: list | None = None

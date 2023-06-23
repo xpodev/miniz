@@ -4,25 +4,10 @@ This module defines the core of the Z# type system. This may be used by both the
 Objects defined in this module should not be exposed to the Z# environment.
 """
 
-
-class ObjectProtocol:
-    runtime_type: "TypeProtocol"
-
-    def is_instance_of(self, __type: "ImplementsType") -> bool:
-        if isinstance(__type, TypeProtocol):
-            return __type.is_instance(self)
-        raise NotImplementedError(f"Currently, only types implemented on the Python level are supported.")
-
-
-class TypeProtocol(ObjectProtocol):
-    def is_instance(self, __object: ObjectProtocol) -> bool:
-        return __object.runtime_type is self
-
-    def assignable_to(self, target: "TypeProtocol") -> bool:
-        raise NotImplementedError
-
-    def assignable_from(self, source: "TypeProtocol") -> bool:
-        raise NotImplementedError
+from miniz.concrete.oop import Class, Field, Access, Method
+from miniz.core import TypeProtocol, ImplementsType, ObjectProtocol
+from miniz.interfaces.oop import Binding
+from miniz.vm import instructions as vm
 
 
 def assignable_to(source: TypeProtocol, target: TypeProtocol) -> bool:
@@ -38,8 +23,10 @@ def is_type(__object) -> bool:
         return True
 
 
-class _Type(TypeProtocol):
+class _Type(Class):
     def __init__(self):
+        super().__init__("Type")
+
         self.runtime_type = self
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
@@ -56,9 +43,13 @@ Type = _Type()
 del _Type
 
 
-class _TypeBase(TypeProtocol):
-    def __init__(self):
+class _TypeBase(Class):
+    def __init__(self, name: str):
+        super().__init__(name)
+
         self.runtime_type = Type
+
+        self.base = Type
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         raise NotImplementedError
@@ -68,6 +59,9 @@ class _TypeBase(TypeProtocol):
 
 
 class _Void(_TypeBase):
+    def __init__(self):
+        super().__init__("Void")
+
     def assignable_to(self, target: "TypeProtocol") -> bool:
         return False
 
@@ -91,9 +85,18 @@ class _Unit(_TypeBase):
             return "()"
 
     def __init__(self):
-        super().__init__()
+        super().__init__("Unit")
 
         self.UnitInstance = self._Unit(self)
+
+        constructor = Method(return_type=self, binding=Binding.Static)
+        constructor.body.instructions.extend([
+            vm.LoadObject(self.UnitInstance),
+            vm.Return()
+        ])
+
+        self.constructors.append(constructor)
+        self.fields.append(Field("unit", self, self.UnitInstance, Binding.Static, Access.Constant))
 
         del _Unit._Unit
 
@@ -121,10 +124,13 @@ class _Boolean(_TypeBase):
             return "true" if self.value else "false"
 
     def __init__(self):
-        super().__init__()
+        super().__init__("Boolean")
 
         self.TrueInstance = self._Boolean(True, self)
         self.FalseInstance = self._Boolean(False, self)
+
+        self.fields.append(Field("true", self, self.TrueInstance, Binding.Static, Access.Constant))
+        self.fields.append(Field("false", self, self.FalseInstance, Binding.Static, Access.Constant))
 
         del _Boolean._Boolean
 
@@ -151,7 +157,7 @@ class _Any(_TypeBase):
             return "undefined"
 
     def __init__(self):
-        super().__init__()
+        super().__init__("any")
 
         self.UndefinedInstance = self._Undefined(self)
 
@@ -196,9 +202,11 @@ class _Null(_TypeBase):
             return "null"
 
     def __init__(self):
-        super().__init__()
+        super().__init__("NullType")
 
         self.NullInstance = self._Null(self)
+
+        self.fields.append(Field("null", self, self.NullInstance, Binding.Static, Access.Constant))
 
         del _Null._Null
 
@@ -216,27 +224,43 @@ Null = _Null()
 del _Null
 
 
+# class _FunctionType(GenericClass):
+#     """
+#     This is the type of all functions. This class is a template that can be instantiated to fit a certain signature.
+#
+#     Z# source code:
+#
+#     class Function(return_type: type, variadic_positional: Parameter?, variadic_named: Parameter?, *parameters: Parameter) {
+#         ?
+#     }
+#     """
+#
+#     def __init__(self):
+#         super().__init__("FunctionType", Type)
+
+
 del _TypeBase
 
 
-ImplementsType = TypeProtocol
+Class.runtime_type = Type
 
 
 if __name__ == '__main__':
-    print(Type)
-    print(Void)
-    print(Unit)
-    print(Unit.UnitInstance)
-    print(Boolean)
-    print(Boolean.TrueInstance)
-    print(Boolean.FalseInstance)
-    print(Any)
-    print(Any.UndefinedInstance)
-    print(Null)
-    print(Null.NullInstance)
+    print("Type:", Type)
+    print("Void:", Void)
+    print("Unit:", Unit)
+    print("Unit.UnitInstance:", Unit.UnitInstance)
+    print("Boolean:", Boolean)
+    print("Boolean.TrueInstance:", Boolean.TrueInstance)
+    print("Boolean.FalseInstance:", Boolean.FalseInstance)
+    print("Any:", Any)
+    print("Any.UndefinedInstance:", Any.UndefinedInstance)
+    print("Null:", Null)
+    print("Null.NullInstance:", Null.NullInstance)
 
-    print(Nullable(Boolean))
+    print("Nullable(Boolean):", Nullable(Boolean))
     print("bool? <- bool ::", assignable_to(Boolean, Nullable(Boolean)))
     print("bool <- bool? ::", assignable_from(Boolean, Nullable(Boolean)))
 
-    print(Type is Type.runtime_type is Void.runtime_type is Unit.runtime_type is Boolean.runtime_type is Any.runtime_type is Null.runtime_type)
+    print("Runtime Type == Type:", Type is Type.runtime_type is Void.runtime_type is Unit.runtime_type is Boolean.runtime_type is Any.runtime_type is Null.runtime_type)
+    print("Base == Type: ", Type is Void.base is Unit.base is Boolean.base is Any.base is Null.base)

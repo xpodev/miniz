@@ -1,21 +1,21 @@
 """
 This module contains the `Function` class, which represents a Z# function.
 """
-from miniz.function_signature import FunctionSignature
+from miniz.concrete.function_signature import FunctionSignature
 from miniz.generic.generic_construction import IConstructor
-from miniz.scope import Scope
-from miniz.signature import Parameter
-from miniz.type_system import ImplementsType, Any
+from miniz.interfaces.function import IFunction, ILocal, IFunctionBody
+from miniz.ownership import Owned
+from miniz.concrete.signature import Parameter
+from miniz.core import ImplementsType
 from miniz.vm.instruction import Instruction
 from utils import NotifyingList
 
 
-class FunctionBody:
-    owner: "Function"
+class FunctionBody(IFunctionBody):
     _instructions: NotifyingList[Instruction] | None
 
     def __init__(self, owner: "Function"):
-        self.owner = owner
+        super().__init__(owner=owner)
         self._instructions = NotifyingList()
 
         def on_add_instruction(_, inst):
@@ -31,26 +31,68 @@ class FunctionBody:
         return self._instructions is not None
 
     @property
+    def owner(self):
+        return super().owner
+
+    @owner.setter
+    def owner(self, value):
+        raise TypeError(f"Can't change the owner of a function body.")
+
+    @property
     def instructions(self):
         return self._instructions
 
 
-class Function:
+class Local(ILocal):
+    name: str
+    type: ImplementsType | Parameter
+
+    def __init__(self, name: str, type: ImplementsType | Parameter):
+        super().__init__()
+        self.name = name
+        self.type = type
+        self.owner = None
+
+    @property
+    def index(self):
+        if self.owner is None:
+            raise ValueError(f"Local {self} doesn't have an owner")
+        return self.owner.locals.index(self)
+
+
+class Function(IFunction):
     """
     Represents a Z# function. This object should not be exposed to the Z# environment.
-
-    Currently, the function's body may be represented by any object, and it depends on the interpreter implementation.
     """
 
     signature: FunctionSignature
+
     _body: FunctionBody
 
-    lexical_scope: Scope
+    _locals: NotifyingList[Local]
 
-    def __init__(self, lexical_scope: Scope | None, name: str = None, return_type: ImplementsType = Any):
+    def __init__(self, name: str = None, return_type: ImplementsType = None):
+        Owned.__init__(self)
+
         self.signature = FunctionSignature(name, return_type)
-        self.lexical_scope = lexical_scope
+        self.signature.owner = self
         self._body = FunctionBody(self)
+        self._locals = NotifyingList()
+
+        def on_add_local(_, local: Local):
+            if local.owner is not None:
+                raise ValueError(f"Local variable \'{local}\' if already owned by {local.owner}")
+            local.owner = self
+
+        def on_remove_local(_, local: Local | int):
+            if isinstance(local, int):
+                local = self._locals[local]
+            local.owner = None
+
+        self._locals.append += on_add_local
+
+        self._locals.remove += on_remove_local
+        self._locals.pop += on_remove_local
 
     @property
     def name(self):
@@ -63,6 +105,10 @@ class Function:
     @property
     def body(self):
         return self._body
+
+    @property
+    def locals(self):
+        return self._locals
 
     @property
     def positional_parameters(self):

@@ -6,6 +6,15 @@ _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
 
 
+class SingletonMeta(type):
+    _instances: dict[type, object] = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
 class Event:
     def __init__(self, fn):
         self.fn = fn
@@ -45,6 +54,14 @@ class EventInstance:
     def __call__(self, *args, **kwargs):
         list(map(lambda f: f(self.instance, *args, **kwargs), self.callbacks))
         return self.fn(self.instance, *args, **kwargs)
+
+
+class IRepresentable:
+    def full_representation(self) -> str:
+        return repr(self)
+
+    def reference_representation(self) -> str:
+        return super().__repr__()
 
 
 def event(fn):
@@ -122,7 +139,7 @@ class DependencyGraph(Generic[_T]):
                 statuses[item] = cls.Status.Visiting
             else:
                 if statuses[item] == cls.Status.Visiting:
-                    raise cls.CircularDependencyException(f"Circular dependency found: {' -> '.join(chain)}")
+                    raise cls.CircularDependencyException(f"Circular dependency found: {' -> '.join(map(str, chain))}")
                 if status == cls.Status.Visited:
                     return levels[item]
             items = dependency_finder(item)

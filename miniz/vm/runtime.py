@@ -1,98 +1,12 @@
 from functools import singledispatchmethod
 
-from miniz.function import Function
-from miniz.generic.generic_construction import IConstructor
-from miniz.signature import Parameter
-from miniz.type_system import ObjectProtocol
-from miniz.vm.instructions import Instruction, Return, Call, LoadArgument, LoadObject, EndOfProgram
-
-
-class GenericInstructionExecuted(Exception):
-    ...
-
-
-class InvalidInstructionError(Exception):
-    ...
-
-
-class Code:
-    _ip: int
-    _instructions: list[Instruction]
-
-    def __init__(self, instructions: list[Instruction]):
-        self._instructions = instructions
-        self._ip = 0
-
-    @property
-    def instruction(self):
-        return self._instructions[self._ip]
-
-    def next_instruction(self) -> Instruction:
-        inst = self.instruction
-        self._ip += 1
-        return inst
-
-    def jump(self, target: Instruction | int):
-        if isinstance(target, Instruction):
-            target = target.index
-        self._ip = target
-
-
-class Frame(Code):
-    _function: Function
-    _args: dict[Parameter, ObjectProtocol]
-
-    def __init__(self, function: Function, args: dict[Parameter, ObjectProtocol]):
-        self._function = function
-        self._args = args
-
-        if not self._function.body.has_body:
-            raise ValueError(f"Called an empty (declaration) function")
-
-        super().__init__(self._function.body.instructions.copy())
-
-    def argument(self, parameter: Parameter):
-        return self._args[parameter]
-
-
-class ExecutionContext:
-    """
-    Execution context for a single thread.
-    """
-
-    _frame: Code | Frame
-    _frames: list[Code]
-    _stack: list[ObjectProtocol]
-
-    def __init__(self, code: Code):
-        self._frames = [code]
-        self._frame = code
-        self._stack = []
-
-    @property
-    def frame(self):
-        return self._frame
-
-    def push_frame(self, function: Function, args: dict[Parameter, ObjectProtocol] | list[ObjectProtocol]):
-        if isinstance(args, list):
-            args = {
-                parameter: arg for parameter, arg in zip(function.signature.parameters, args)
-            }
-        self._frame = Frame(function, args)
-        self._frames.append(self._frame)
-
-    def pop_frame(self):
-        self._frames.pop()
-        self._frame = self._frames[-1]
-
-    def push(self, value: ObjectProtocol):
-        self._stack.append(value)
-
-    def pop(self) -> ObjectProtocol:
-        return self._stack.pop()
-
-    def next_instruction(self) -> Instruction:
-        return self._frame.next_instruction()
+from miniz.concrete.function import Function
+from miniz.concrete.oop import Binding
+from miniz.concrete.signature import Parameter
+from miniz.type_system import Void
+from miniz.vm.instructions import Instruction, Return, Call, LoadArgument, LoadObject, SetArgument, SetField, LoadField, LoadLocal, SetLocal, Jump, JumpIfFalse, JumpIfTrue, DuplicateTop, NoOperation, \
+    TypeOf
+from miniz.vm.rtlib import ExecutionContext, Code, EndOfProgram
 
 
 class Interpreter:
@@ -101,21 +15,25 @@ class Interpreter:
 
     This VM implementation assumes the input code was checked and validated.
     """
-    _ctx: ExecutionContext
+    _ctx: ExecutionContext | None
     _running: bool
 
-    def __init__(self, code: Code | list[Instruction]):
-        if isinstance(code, list):
-            code = Code(code)
-        self._ctx = ExecutionContext(code)
+    def __init__(self):
+        self._ctx = None
         self._running = False
 
     @property
     def ctx(self):
         return self._ctx
 
-    def run(self):
+    def run(self, code: Code | list[Instruction]):
+        if isinstance(code, list):
+            code = Code(code)
+        if code.instructions[-1] is not EndOfProgram():
+            code.instructions.append(EndOfProgram())
+        self._ctx = ExecutionContext(code)
         self._running = True
+
         while self._running:
             self.execute(self.ctx.next_instruction())
 
@@ -144,20 +62,56 @@ class Interpreter:
         self.ctx.push_frame(inst.callee, args)
 
     @_exec
+    def _(self, _: DuplicateTop):
+        self.ctx.push(self.ctx.top())
+
+    @_exec
     def _(self, _: EndOfProgram):
         self._running = False
+
+    @_exec
+    def _(self, inst: Jump):
+        self.ctx.frame.jump(inst.target)
+
+    @_exec
+    def _(self, inst: JumpIfFalse):
+        if self.ctx.pop() is Boolean.FalseInstance:
+            self.ctx.frame.jump(inst.target)
+
+    @_exec
+    def _(self, inst: JumpIfTrue):
+        if self.ctx.pop() is Boolean.TrueInstance:
+            self.ctx.frame.jump(inst.target)
 
     @_exec
     def _(self, inst: LoadArgument):
         self.ctx.push(self.ctx.frame.argument(inst.parameter))
 
     @_exec
+    def _(self, inst: LoadField):
+        match inst.field.binding:
+            case Binding.Instance:
+                self.ctx.push(self.ctx.pop().data[inst.field.index])
+            case Binding.Class:
+                raise NotImplementedError
+            case Binding.Static:
+                raise NotImplementedError
+
+    @_exec
+    def _(self, inst: LoadLocal):
+        self.ctx.push(self.ctx.frame.local(inst.local))
+
+    @_exec
     def _(self, inst: LoadObject):
         self.ctx.push(inst.object)
 
     @_exec
-    def _(self, inst: Return):
-        if inst.has_return_value:
+    def _(self, _: NoOperation):
+        ...
+
+    @_exec
+    def _(self, _: Return):
+        if self.ctx.frame.function.return_type != Void:
             return_value = self.ctx.pop()
 
             self.ctx.pop_frame()
@@ -166,17 +120,41 @@ class Interpreter:
         else:
             self.ctx.pop_frame()
 
+    @_exec
+    def _(self, inst: SetArgument):
+        self.ctx.frame.argument(inst.parameter, self.ctx.pop())
+
+    @_exec
+    def _(self, inst: SetField):
+        value = self.ctx.pop()
+
+        match inst.field.binding:
+            case Binding.Instance:
+                self.ctx.pop().data[inst.field.index] = value
+            case Binding.Class:
+                raise NotImplementedError
+            case Binding.Static:
+                raise NotImplementedError
+
+    @_exec
+    def _(self, inst: SetLocal):
+        self.ctx.frame.local(inst.local, self.ctx.pop())
+
+    @_exec
+    def _(self, _: TypeOf):
+        self.ctx.push(self.ctx.pop().runtime_type)
+
 
 if __name__ == '__main__':
     from miniz.type_system import Boolean
 
-    f = Function(None, "f")
+    f = Function("f")
 
     f.positional_parameters.append(Parameter("x", Boolean))
     f.body.instructions.append(LoadArgument(f.positional_parameters[0]))
-    f.body.instructions.append(Return(True))
+    f.body.instructions.append(Return())
 
-    interpreter = Interpreter([LoadObject(Boolean.TrueInstance), Call(f), EndOfProgram()])
-    interpreter.run()
+    interpreter = Interpreter()
+    interpreter.run([LoadObject(Boolean.TrueInstance), Call(f)])
 
     print(interpreter.ctx.pop())

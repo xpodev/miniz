@@ -1,19 +1,17 @@
-from miniz.type_system import ImplementsType, Any, ObjectProtocol
+from miniz.interfaces.signature import ISignature, IParameter
+from miniz.core import ImplementsType, ObjectProtocol
 from utils import NotifyingList
 
 
-class Parameter:
-    name: str
-    type: ImplementsType
+class Parameter(IParameter):
+    parameter_type: ImplementsType
     default_value: ObjectProtocol | None
 
-    owner: "Signature | None"
-
-    def __init__(self, name: str, type: ImplementsType = Any, default_value: ObjectProtocol = None):
+    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None):
+        super().__init__()
         self.name = name
-        self.type = type
+        self.parameter_type = type
         self.default_value = default_value
-        self.owner = None
 
     @property
     def index(self):
@@ -21,13 +19,15 @@ class Parameter:
             raise ValueError(f"Parameter currently doesn't have an index")
         return self.owner.parameters.index(self)
 
+    @property
+    def has_default_value(self):
+        return self.default_value is not None
+
     def __repr__(self):
-        return f"{self.name}: {self.type}" + (f" = {self.default_value}" if self.default_value is not None else "")
+        return f"{self.name}: {self.parameter_type}" + (f" = {self.default_value}" if self.default_value is not None else "")
 
 
-class Signature:
-    name: str | None
-
+class Signature(ISignature):
     _parameters: dict[str, Parameter]
 
     _positional_parameters: NotifyingList[Parameter]

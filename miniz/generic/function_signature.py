@@ -1,19 +1,25 @@
 from typing import Callable
 
-from miniz.function_signature import FunctionSignature
+from miniz.concrete.function_signature import FunctionSignature
 from miniz.generic.generic_construction import IConstructor, recursive_resolve
 from miniz.generic.signature import GenericSignature, GenericParameter
-from miniz.signature import Parameter
+from miniz.concrete.signature import Parameter
+from miniz.interfaces.function import IFunctionSignature, IReturnParameter
 from miniz.type_system import ImplementsType, Any, ObjectProtocol
 
 
-class GenericFunctionSignature(GenericSignature):
-    return_type: ImplementsType | GenericParameter | Parameter
+class GenericReturnParameter(IReturnParameter):
+    def __init__(self, signature: "GenericFunctionSignature", parameter_type: ImplementsType | Parameter | GenericParameter = None):
+        super().__init__(owner=signature)
+        self.parameter_type = parameter_type
 
+
+class GenericFunctionSignature(GenericSignature, IFunctionSignature):
     def __init__(self, name: str = None, return_type: ImplementsType | Parameter = Any):
         super().__init__(name)
+        IFunctionSignature.__init__(self)
 
-        self.return_type = return_type
+        self.return_parameter = GenericReturnParameter(self, return_type)
 
     def construct(
             self,
