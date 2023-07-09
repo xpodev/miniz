@@ -3,11 +3,15 @@ from typing import Type, TypeVar
 from miniz.concrete.function import Function, Local
 from miniz.concrete.oop import Class, Binding
 from miniz.concrete.signature import Parameter
+from miniz.interfaces.execution import IExecutable, ITarget
 from miniz.type_system import ObjectProtocol
 from miniz.vm.instruction import Instruction
-from utils import SingletonMeta
+from utils import SingletonMeta, NotifyingList
 
 _T = TypeVar("_T", bound=ObjectProtocol)
+
+
+_SENTINEL = object()
 
 
 class EndOfProgram(Instruction, metaclass=SingletonMeta):
@@ -34,13 +38,37 @@ class Instance(ObjectProtocol):
         return self._data
 
 
-class Code:
+class CodeLocal(ITarget["Code"]):
+    ...
+
+
+class Code(IExecutable):
     _ip: int
     _instructions: list[Instruction]
+    _locals_impl: NotifyingList[CodeLocal]
 
     def __init__(self, instructions: list[Instruction]):
         self._instructions = instructions
         self._ip = 0
+        self._locals_impl = NotifyingList()
+
+        def on_add_local(_, local: ITarget):
+            if not isinstance(local, CodeLocal):
+                raise TypeError(f"Can only add \'{CodeLocal.__name__}\' objects to a \'{Code.__name__}\' object, not \'{type(local).__name__}\'")
+            if local.is_member:
+                raise ValueError(f"Local \'{local}\' is already owned by \'{local.owner}\'")
+            local.owner = self
+
+        def on_remove_local(_, local: ITarget | int):
+            if isinstance(local, int):
+                local = self._locals_impl[local]
+            if local.owner is not self:
+                raise ValueError(f"Local \'{local}\' is not owned by \'{self}\'")
+            local.owner = None
+
+        self._locals_impl.append += on_add_local
+        self._locals_impl.remove += on_remove_local
+        self._locals_impl.pop += on_remove_local
 
     @property
     def instruction(self):
@@ -49,6 +77,10 @@ class Code:
     @property
     def instructions(self):
         return self._instructions
+
+    @property
+    def locals(self):
+        return self._locals_impl
 
     def next_instruction(self) -> Instruction:
         inst = self.instruction
@@ -102,7 +134,7 @@ class ExecutionContext:
     _frames: list[Code]
     _stack: list[ObjectProtocol]
 
-    def __init__(self, code: Code):
+    def __init__(self, code: Code | None):
         self._frames = [code]
         self._frame = code
         self._stack = []
@@ -129,8 +161,13 @@ class ExecutionContext:
     def top(self, _: Type[_T] = ObjectProtocol) -> _T:
         return self._stack[-1]
 
-    def pop(self, _: Type[_T] = ObjectProtocol) -> _T:
-        return self._stack.pop()
+    def pop(self, *, default: _T = _SENTINEL) -> _T:
+        try:
+            return self._stack.pop()
+        except IndexError:
+            if default is _SENTINEL:
+                raise
+            return default
 
     def next_instruction(self) -> Instruction:
         return self._frame.next_instruction()

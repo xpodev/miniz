@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from miniz.concrete.overloading import OverloadGroup
 from miniz.interfaces.base import INamed
 from miniz.interfaces.function import IFunction
 from miniz.ownership import Owned
-from miniz.core import ImplementsType
+from miniz.core import ImplementsType, TypeProtocol
 
 
 class Binding(Enum):
@@ -43,17 +44,27 @@ class IProperty(IOOPMember):
     setter: IMethod | None
 
 
-class IOOPDefinition(IOOPMember):
+class IOOPDefinition(IOOPMember, TypeProtocol):
     fields: list[IField]
     methods: list[IMethod]
     properties: list[IProperty]
     nested_definitions: list["IOOPDefinition"]
 
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        return super().assignable_to(target)
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        return super().assignable_from(source)
+
 
 class IClass(IOOPDefinition):
     base: "IClass | None"
     specifications: list["OOPImplementable"]
-    constructors: list["IMethod"]
+    constructor: OverloadGroup[IMethod]
+
+    @property
+    def constructors(self):
+        return self.constructor.overloads
 
 
 @dataclass(slots=True)

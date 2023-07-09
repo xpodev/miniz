@@ -7,7 +7,7 @@ from miniz.ownership import Owned
 
 class IGlobal(Owned["IModuleBase"], INamed):
     type: ImplementsType
-    default_value: ObjectProtocol | None
+    value: ObjectProtocol | None
 
 
 class IModuleBase(Owned["IModuleBase"], INamed):

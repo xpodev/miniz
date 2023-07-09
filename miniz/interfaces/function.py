@@ -1,4 +1,5 @@
 from miniz.interfaces.base import INamed
+from miniz.interfaces.execution import ITarget
 from miniz.interfaces.signature import ISignature
 from miniz.ownership import Owned
 from miniz.core import ImplementsType
@@ -20,8 +21,8 @@ class IFunctionSignature(ISignature, Owned["IFunction"]):
         self.return_parameter.parameter_type = value
 
 
-class ILocal(Owned["IFunction"], INamed):
-    index: int
+class ILocal(ITarget["IFunction"], INamed):
+    ...
 
 
 class IFunctionBody(Owned["IFunction"]):

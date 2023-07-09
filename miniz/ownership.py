@@ -1,5 +1,7 @@
 from typing import TypeVar, Generic, Any
 
+from miniz.interfaces.base import IMiniZObject
+
 _T = TypeVar("_T", bound="Owned")
 
 
@@ -12,7 +14,7 @@ class Member(Generic[_T]):
         self.as_free_object = owned
 
 
-class Owned(Generic[_T]):
+class Owned(IMiniZObject, Generic[_T]):
     """
     Base class for all objects that may be owned by another object.
 

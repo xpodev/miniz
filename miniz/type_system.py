@@ -6,6 +6,7 @@ Objects defined in this module should not be exposed to the Z# environment.
 
 from miniz.concrete.oop import Class, Field, Access, Method
 from miniz.core import TypeProtocol, ImplementsType, ObjectProtocol
+from miniz.interfaces.base import INamed
 from miniz.interfaces.oop import Binding
 from miniz.vm import instructions as vm
 
@@ -16,6 +17,10 @@ def assignable_to(source: TypeProtocol, target: TypeProtocol) -> bool:
 
 def assignable_from(target: TypeProtocol, source: TypeProtocol) -> bool:
     return assignable_to(source, target)
+
+
+def are_identical(left: TypeProtocol, right: TypeProtocol) -> bool:
+    return left is right
 
 
 def is_type(__object) -> bool:
@@ -43,13 +48,12 @@ Type = _Type()
 del _Type
 
 
-class _TypeBase(Class):
+class _TypeBase(TypeProtocol, INamed):
     def __init__(self, name: str):
-        super().__init__(name)
+        super().__init__()
 
+        self.name = name
         self.runtime_type = Type
-
-        self.base = Type
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         raise NotImplementedError
@@ -95,8 +99,8 @@ class _Unit(_TypeBase):
             vm.Return()
         ])
 
-        self.constructors.append(constructor)
-        self.fields.append(Field("unit", self, self.UnitInstance, Binding.Static, Access.Constant))
+        # self.constructors.append(constructor)
+        # self.fields.append(Field("unit", self, self.UnitInstance, Binding.Static, Access.Constant))
 
         del _Unit._Unit
 
@@ -129,8 +133,8 @@ class _Boolean(_TypeBase):
         self.TrueInstance = self._Boolean(True, self)
         self.FalseInstance = self._Boolean(False, self)
 
-        self.fields.append(Field("true", self, self.TrueInstance, Binding.Static, Access.Constant))
-        self.fields.append(Field("false", self, self.FalseInstance, Binding.Static, Access.Constant))
+        # self.fields.append(Field("true", self, self.TrueInstance, Binding.Static, Access.Constant))
+        # self.fields.append(Field("false", self, self.FalseInstance, Binding.Static, Access.Constant))
 
         del _Boolean._Boolean
 
@@ -206,7 +210,7 @@ class _Null(_TypeBase):
 
         self.NullInstance = self._Null(self)
 
-        self.fields.append(Field("null", self, self.NullInstance, Binding.Static, Access.Constant))
+        # self.fields.append(Field("null", self, self.NullInstance, Binding.Static, Access.Constant))
 
         del _Null._Null
 
@@ -223,6 +227,37 @@ class _Null(_TypeBase):
 Null = _Null()
 del _Null
 
+
+class _ObjectType(Class):
+    def __init__(self):
+        super().__init__("Object")
+
+
+Object = _ObjectType()
+del _ObjectType
+
+
+class _StringType(Class):
+    class _Instance(ObjectProtocol):
+        def __init__(self, native: str):
+            self._native = native
+
+        @property
+        def native(self):
+            return self._native
+
+    def __init__(self):
+        super().__init__("String")
+
+        self._Instance.runtime_type = self
+        self.base = Object
+
+    def create_from(self, native: str):
+        return self._Instance(native)
+
+
+String = _StringType()
+del _StringType
 
 # class _FunctionType(GenericClass):
 #     """
@@ -263,4 +298,4 @@ if __name__ == '__main__':
     print("bool <- bool? ::", assignable_from(Boolean, Nullable(Boolean)))
 
     print("Runtime Type == Type:", Type is Type.runtime_type is Void.runtime_type is Unit.runtime_type is Boolean.runtime_type is Any.runtime_type is Null.runtime_type)
-    print("Base == Type: ", Type is Void.base is Unit.base is Boolean.base is Any.base is Null.base)
+

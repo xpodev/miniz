@@ -3,7 +3,8 @@ from enum import Enum
 
 import miniz.ownership
 from miniz.concrete.function import Function
-from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass
+from miniz.concrete.overloading import OverloadGroup
+from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable
 from miniz.core import ImplementsType, ObjectProtocol, TypeProtocol
 from utils import NotifyingList
 
@@ -113,10 +114,10 @@ class Class(IClass, TypeProtocol):
     _base: "Class | None"
     _interfaces: list["Interface"]
 
-    _fields: NotifyingList[Field]
-    _methods: NotifyingList[Method]
-    _properties: NotifyingList[Property]
-    _constructors: NotifyingList[Method]
+    _fields: NotifyingList[IField]
+    _methods: NotifyingList[IMethod]
+    _properties: NotifyingList[IProperty]
+    _constructors: NotifyingList[IMethod]
 
     _nested_classes_and_interfaces: NotifyingList["NestedClass | NestedInterface"]
 
@@ -133,7 +134,9 @@ class Class(IClass, TypeProtocol):
         self._fields = NotifyingList()
         self._methods = NotifyingList()
         self._properties = NotifyingList()
-        self._constructors = NotifyingList()
+
+        self._constructor = OverloadGroup(f"{name or '{AnonymousClass}'}::Constructor", None, owner=self)
+        self._constructor.overloads = self._constructors = NotifyingList()
 
         self._nested_classes_and_interfaces = NotifyingList()
 
@@ -141,7 +144,6 @@ class Class(IClass, TypeProtocol):
             if ms is self._constructors:
                 if not isinstance(member, Method):
                     raise TypeError(f"Constructor must be a method, got {type(member)}")
-                # self._constructor.overloads.append(member)  todo (or not)
                 member.owner = self
             if member.name and not isinstance(member, Method) and member.name in self._members or isinstance(member, Method) and not isinstance(self._members.get(member.name, member), Method):
                 raise ValueError(f"Class {self.name} already defines member \'{member.name}\'")
@@ -211,6 +213,10 @@ class Class(IClass, TypeProtocol):
         return self._properties
 
     @property
+    def constructor(self):
+        return self._constructor
+
+    @property
     def constructors(self):
         return self._constructors
 
@@ -221,12 +227,18 @@ class Class(IClass, TypeProtocol):
     def assignable_from(self, source: "TypeProtocol") -> bool:
         if isinstance(source, Class):
             return source.is_subclass_of(self)
-        return False
+        return bool(self.constructor.get_match([self, source], [], strict=True, recursive=False))
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         if isinstance(target, Class):
             return self.is_subclass_of(target)
-        return False
+        if isinstance(target, OOPImplementable):
+            base = self
+            while base is not None:
+                if target.is_implemented(self):
+                    return True
+                base = base.base
+        return target.assignable_from(self)
 
     def is_subclass_of(self, other: "Class"):
         base = self

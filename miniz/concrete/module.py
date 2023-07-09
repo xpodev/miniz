@@ -1,16 +1,22 @@
 from typing import TypeVar
 
 from miniz.concrete.function import Function
+from miniz.concrete.overloading import OverloadGroup
 from miniz.core import ImplementsType
 from miniz.generic.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
 from miniz.concrete.oop import Class, Interface, Typeclass
+from miniz.interfaces.base import INamed
+from miniz.interfaces.function import IFunction
 from miniz.interfaces.module import IModule, IModuleAPI, IGlobal
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure
 from miniz.ownership import Owned, Member
 from miniz.type_system import ObjectProtocol
 from utils import NotifyingList
+from zs.zs2miniz.lib import Scope
 
 _T = TypeVar("_T")
+
+_SENTINEL = object()
 
 
 class GlobalValue(IGlobal, Owned["Module"]):
@@ -28,15 +34,14 @@ class ModuleAPI(IModuleAPI):
 class Module(IModule):
     name: str | None
 
-    _members: dict[str, Member]
-    _member_list: list[Member]
+    _scope: Scope
 
-    _functions: NotifyingList[Function]
+    _functions: list[IFunction]
 
-    _classes: NotifyingList[IClass]
-    _interfaces: NotifyingList[IInterface]
-    _typeclasses: NotifyingList[ITypeclass]
-    _structures: NotifyingList[IStructure]
+    _classes: list[IClass]
+    _interfaces: list[IInterface]
+    _typeclasses: list[ITypeclass]
+    _structures: list[IStructure]
 
     _types: NotifyingList[IClass, IInterface, ITypeclass, IStructure]
 
@@ -52,15 +57,18 @@ class Module(IModule):
 
         self.name = name
 
-        self._members = {}
-        self._member_list = []
+        self._scope = Scope()
 
         self.specifications = []
 
         self._functions = NotifyingList()
-        self._classes = NotifyingList()
-        self._interfaces = NotifyingList()
-        self._typeclasses = NotifyingList()
+
+        self._classes = []
+        self._interfaces = []
+        self._typeclasses = []
+        self._structures = []
+
+        self._types = NotifyingList()
 
         self._submodules = NotifyingList()
 
@@ -68,24 +76,49 @@ class Module(IModule):
 
         self._entry_point = None
 
-        def on_add_member(_, member: Member):
-            if member.name and member.name not in self._members:
-                self._members[member.name] = member
-            self._member_list.append(member)
+        def on_add_member(ms, member: Member):
+            collection: list | None = None
+            match member:
+                case IFunction() as member:
+                    if member.name:
+                        group = self._scope.lookup_name(member.name, default=None)
+                        if group is None:
+                            self._scope.create_name(member.name, group := OverloadGroup(member.name, None))
+                        group.overloads.append(member)
+                    return # self._functions.append(member)
+                case IClass():
+                    collection = self._classes
+                case IInterface():
+                    collection = self._interfaces
+                case ITypeclass():
+                    collection = self._typeclasses
+                case IStructure():
+                    collection = self._structures
+                case Module():
+                    collection = self._submodules
+                case IModuleAPI():
+                    collection = self._module_apis
+            if collection is not None:
+                collection.append(member)
+            if isinstance(member, INamed):
+                self._scope.create_name(member.name, member)
             member.owner = self
 
         def on_remove_member(ms, member: int | Member):
             if isinstance(member, int):
                 member = ms[member]
-            if member.name:
-                del self._members[member.name]
-            self._member_list.remove(member)
+            # if member.name:
+            #     del self._members[member.name]
+            # self._member_list.remove(member)
             member.owner = None
 
         self._globals.append += on_add_member
 
         self._globals.pop += on_remove_member
         self._globals.remove += on_remove_member
+
+        self._types.append += on_add_member
+        self._functions.append += on_add_member
 
     @property
     def entry_point(self) -> Function:
@@ -109,6 +142,10 @@ class Module(IModule):
         return self._entry_point is not None
 
     @property
+    def functions(self):
+        return self._functions
+
+    @property
     def types(self):
         return self._types
 
@@ -121,6 +158,12 @@ class Module(IModule):
             *self._interfaces,
             *self._globals
         ]
+        # return self._scope.defined_items
+
+    def get_name(self, name: str, *, default: _T = _SENTINEL) -> Owned["Module"] | _T:
+        if default is _SENTINEL:
+            return self._scope.lookup_name(name, recursive_lookup=False)
+        return self._scope.lookup_name(name, recursive_lookup=False, default=default)
 
 
 class ModuleAPIImplementation:

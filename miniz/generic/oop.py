@@ -71,7 +71,7 @@ class GenericField(Member, IConstructor[Field], IField):
             case _:
                 raise ValueError(self.access)
         return f"{declare} {self.name}[{self.binding}]"
-        return f"{declare} {self.name}[{self.binding.name}]: {self.field_type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
+        # return f"{declare} {self.name}[{self.binding.name}]: {self.field_type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
 class GenericMethod(GenericFunction, IMethod, Member):
@@ -425,15 +425,15 @@ class GenericClass(GenericOOPObject, ImplementsType):
 
     def __repr__(self):
         return f"class {self.signature}"
-        declaration = \
-            f"class{' ' if self.name else ''}{self.signature} " \
-            f"{(f'< ' + ', '.join(base.name for base in [*((self._base,) if self._base is not None else ()), *self._interfaces]) + ' ') if self.base is not None or self._interfaces else ''}{{ "
-
-        members = "".join(map(lambda m: "\n\t" + repr(m), self._member_list))
-
-        if members:
-            return declaration + members + "\n}"
-        return declaration + '}'
+        # declaration = \
+        #     f"class{' ' if self.name else ''}{self.signature} " \
+        #     f"{(f'< ' + ', '.join(base.name for base in [*((self._base,) if self._base is not None else ()), *self._interfaces]) + ' ') if self.base is not None or self._interfaces else ''}{{ "
+        #
+        # members = "".join(map(lambda m: "\n\t" + repr(m), self._member_list))
+        #
+        # if members:
+        #     return declaration + members + "\n}"
+        # return declaration + '}'
 
 
 class GenericInterface(GenericOOPObject):

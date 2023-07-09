@@ -1,12 +1,15 @@
+from contextlib import contextmanager
 from functools import singledispatchmethod
 
 from miniz.concrete.function import Function
 from miniz.concrete.oop import Binding
 from miniz.concrete.signature import Parameter
+from miniz.core import ObjectProtocol
 from miniz.type_system import Void
-from miniz.vm.instructions import Instruction, Return, Call, LoadArgument, LoadObject, SetArgument, SetField, LoadField, LoadLocal, SetLocal, Jump, JumpIfFalse, JumpIfTrue, DuplicateTop, NoOperation, \
+from miniz.vm.instructions import Instruction, Return, Call, CreateInstance, LoadArgument, LoadObject, SetArgument, SetField, LoadField, LoadLocal, SetLocal, Jump, JumpIfFalse, JumpIfTrue, \
+    DuplicateTop, NoOperation, \
     TypeOf
-from miniz.vm.rtlib import ExecutionContext, Code, EndOfProgram
+from miniz.vm.rtlib import ExecutionContext, Code, EndOfProgram, Instance
 
 
 class Interpreter:
@@ -26,16 +29,24 @@ class Interpreter:
     def ctx(self):
         return self._ctx
 
-    def run(self, code: Code | list[Instruction]):
+    def run(self, code: Code | list[Instruction], stack: list[ObjectProtocol] = None):
         if isinstance(code, list):
             code = Code(code)
+        if not code.instructions:
+            code.instructions.append(EndOfProgram())
         if code.instructions[-1] is not EndOfProgram():
             code.instructions.append(EndOfProgram())
-        self._ctx = ExecutionContext(code)
+        ctx = self._ctx = ExecutionContext(code)
+        if stack is not None:
+            for item in stack:
+                self.ctx.push(item)
         self._running = True
 
         while self._running:
             self.execute(self.ctx.next_instruction())
+
+        self._ctx = None
+        return ctx
 
     def execute(self, inst: Instruction):
         # if not isinstance(inst, Instruction):
@@ -60,6 +71,17 @@ class Interpreter:
 
         args = {p: self.ctx.pop() for p in reversed(inst.callee.signature.parameters)}
         self.ctx.push_frame(inst.callee, args)
+
+    @_exec
+    def _(self, inst: CreateInstance):
+        instance = Instance(inst.constructor.owner)
+        args = []
+        for _ in inst.constructor.signature.parameters:
+            args.append(self.ctx.pop())
+        self.ctx.push(instance)
+        for arg in reversed(args):
+            self.ctx.push(arg)
+        self.execute(Call(inst.constructor))
 
     @_exec
     def _(self, _: DuplicateTop):
