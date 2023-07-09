@@ -4,9 +4,12 @@ from enum import Enum
 import miniz.ownership
 from miniz.concrete.function import Function
 from miniz.concrete.overloading import OverloadGroup
-from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable
+from miniz.interfaces.base import ScopeProtocol
+from miniz.interfaces.function import IFunction
+from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable, IOOPDefinition
 from miniz.core import ImplementsType, ObjectProtocol, TypeProtocol
 from utils import NotifyingList
+from zs.zs2miniz.lib import Scope
 
 
 class Access(Enum):
@@ -103,13 +106,12 @@ class Property(Member, IProperty):
             f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class Class(IClass, TypeProtocol):
+class Class(IClass, TypeProtocol, ScopeProtocol):
     as_member: miniz.ownership.Member["Class"]
 
     name: str | None
 
-    _members: dict[str, Member]
-    _member_list: list[Member]
+    _scope: Scope
 
     _base: "Class | None"
     _interfaces: list["Interface"]
@@ -125,8 +127,7 @@ class Class(IClass, TypeProtocol):
         super().__init__()
         self.name = name
 
-        self._members = {}
-        self._member_list = []
+        self._scope = Scope()
 
         self._base = None
         self._interfaces = []
@@ -141,26 +142,33 @@ class Class(IClass, TypeProtocol):
         self._nested_classes_and_interfaces = NotifyingList()
 
         def on_add_member(ms, member: Member):
-            if ms is self._constructors:
-                if not isinstance(member, Method):
-                    raise TypeError(f"Constructor must be a method, got {type(member)}")
+            if member.owner is not None:
+                raise TypeError
+
+            if isinstance(member, IFunction):
+                if not isinstance(member, IMethod):
+                    raise TypeError
+                if ms is not self.constructors and member.name:
+                    group = self._scope.lookup_name(member.name, recursive_lookup=False, default=None)
+                    if group is None:
+                        group = OverloadGroup(member.name, None, owner=self)
+                        self._scope.create_name(group.name, group)
                 member.owner = self
-            if member.name and not isinstance(member, Method) and member.name in self._members or isinstance(member, Method) and not isinstance(self._members.get(member.name, member), Method):
-                raise ValueError(f"Class {self.name} already defines member \'{member.name}\'")
-            if member.name and member.name not in self._members:
-                self._members[member.name] = member
-            self._member_list.append(member)
+                return
+            if member.name:
+                self._scope.create_name(member.name, member)
             member.owner = self
 
         def on_remove_member(ms, member: int | Member):
             if isinstance(member, int):
                 member = ms[member]
             if member.name:
-                if isinstance(member, Method):
-                    ...  # todo: overload support
-                else:
-                    del self._members[member.name]
-            self._member_list.remove(member)
+                if ms is self.methods:
+                    if ms is self.methods:
+                        group = self._scope.lookup_name(member.name)
+                        assert isinstance(group, OverloadGroup)
+                        group.overloads.remove(member)
+                self._scope.delete_name(member.name)
             member.owner = None
 
         self._fields.append += on_add_member
@@ -250,6 +258,14 @@ class Class(IClass, TypeProtocol):
 
     def is_base_class_of(self, other: "Class"):
         return other.is_subclass_of(self)
+
+    def get_name(self, name: str) -> ObjectProtocol:
+        base = self
+        result = None
+        while result is None and base is not None:
+            result = base._scope.lookup_name(name, default=None)
+            base = base.base
+        return result
 
     def __repr__(self):
         return f"class {self.name or '{Anonymous}'}"
