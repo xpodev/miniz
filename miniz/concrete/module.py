@@ -2,10 +2,10 @@ from typing import TypeVar
 
 from miniz.concrete.function import Function
 from miniz.concrete.overloading import OverloadGroup
-from miniz.core import ImplementsType
+from miniz.core import ImplementsType, TypeProtocol
 from miniz.generic.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
 from miniz.concrete.oop import Class, Interface, Typeclass
-from miniz.interfaces.base import INamed
+from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.module import IModule, IModuleAPI, IGlobal
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure
@@ -29,6 +29,26 @@ class GlobalValue(IGlobal, Owned["Module"]):
 
 class ModuleAPI(IModuleAPI):
     ...
+
+
+class ModuleType(TypeProtocol, ScopeProtocol):
+    _module: "Module"
+
+    def __init__(self, module: "Module"):
+        self._module = module
+
+    @property
+    def module(self):
+        return self._module
+
+    def get_name(self, name: str) -> ObjectProtocol:
+        return self.module.get_name(name)
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        return source is self
+
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        return target is self
 
 
 class Module(IModule):
@@ -56,6 +76,7 @@ class Module(IModule):
         super().__init__()
 
         self.name = name
+        self.runtime_type = ModuleType(self)
 
         self._scope = Scope()
 
