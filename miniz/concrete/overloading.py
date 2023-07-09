@@ -1,7 +1,8 @@
 import typing
 from typing import Generic, TypeVar
 
-from miniz.interfaces.base import INamed
+from miniz.core import TypeProtocol
+from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.ownership import Owned
 
@@ -9,6 +10,23 @@ if typing.TYPE_CHECKING:
     from miniz.type_system import ImplementsType
 
 _T = TypeVar("_T", bound=IFunction)
+
+
+class OverloadGroupType(TypeProtocol):
+    _group: "OverloadGroup"
+
+    def __init__(self, group: "OverloadGroup"):
+        self._group = group
+
+    @property
+    def group(self):
+        return self._group
+
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        ...
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        ...
 
 
 class OverloadGroup(Owned, INamed, Generic[_T]):
@@ -20,6 +38,8 @@ class OverloadGroup(Owned, INamed, Generic[_T]):
         self.name = name
         self.parent = parent
         self.overloads = []
+
+        self.runtime_type = OverloadGroupType(self)
 
     def get_match(self, args: list["ImplementsType"], kwargs: list[tuple[str, "ImplementsType"]], *, strict: bool = False, recursive: bool = False) -> list[_T]:
         from miniz.type_system import assignable_to, are_identical
