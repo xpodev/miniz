@@ -1,5 +1,5 @@
 from miniz.core import ImplementsType, ObjectProtocol
-from miniz.interfaces.base import INamed
+from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure
 from miniz.ownership import Owned
@@ -10,7 +10,7 @@ class IGlobal(Owned["IModuleBase"], INamed):
     value: ObjectProtocol | None
 
 
-class IModuleBase(Owned["IModuleBase"], INamed):
+class IModuleBase(Owned["IModuleBase"], INamed, ScopeProtocol):
     functions: list[IFunction]
     types: list[IClass | IInterface | ITypeclass | IStructure]
     submodules: list["IModule"]
