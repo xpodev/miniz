@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Callable
 
 from miniz.concrete.overloading import OverloadGroup
 from miniz.interfaces.base import INamed
@@ -49,6 +50,10 @@ class IOOPDefinition(IOOPMember, TypeProtocol):
     methods: list[IMethod]
     properties: list[IProperty]
     nested_definitions: list["IOOPDefinition"]
+
+    runtime_type_constructor: Callable[["IOOPDefinition"], TypeProtocol]
+
+    binding = Binding.Static
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         return super().assignable_to(target)

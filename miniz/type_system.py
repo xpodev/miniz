@@ -4,10 +4,10 @@ This module defines the core of the Z# type system. This may be used by both the
 Objects defined in this module should not be exposed to the Z# environment.
 """
 
-from miniz.concrete.oop import Class, Field, Access, Method
+from miniz.concrete.oop import Class, Method
 from miniz.core import TypeProtocol, ImplementsType, ObjectProtocol
-from miniz.interfaces.base import INamed
-from miniz.interfaces.oop import Binding
+from miniz.interfaces.base import INamed, ScopeProtocol
+from miniz.interfaces.oop import Binding, IClass, IOOPDefinition
 from miniz.vm import instructions as vm
 
 
@@ -30,6 +30,8 @@ def is_type(__object) -> bool:
 
 class _Type(Class):
     def __init__(self):
+        IOOPDefinition.runtime_type_constructor = lambda _: _
+
         super().__init__("Type")
 
         self.runtime_type = self
@@ -60,6 +62,34 @@ class _TypeBase(TypeProtocol, INamed):
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
         raise NotImplementedError
+
+
+class OOPDefinitionType(_TypeBase, ScopeProtocol):
+    _definition: Class
+
+    def __init__(self, definition: Class):
+        super().__init__(f"<Class \'{definition.name}\'")
+        self._definition = definition
+
+    @property
+    def definition(self):
+        return self._definition
+
+    def get_name(self, name: str):
+        return self._definition.get_name(name)
+
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        if isinstance(target, OOPDefinitionType):
+            return self.definition.is_subclass_of(target.definition)
+        return target.assignable_from(self)
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        if isinstance(source, OOPDefinitionType):
+            return source.definition.is_subclass_of(self.definition)
+        return source.assignable_to(self)
+
+
+IOOPDefinition.runtime_type_constructor = OOPDefinitionType
 
 
 class _Void(_TypeBase):
@@ -275,9 +305,6 @@ del _StringType
 
 
 del _TypeBase
-
-
-Class.runtime_type = Type
 
 
 if __name__ == '__main__':

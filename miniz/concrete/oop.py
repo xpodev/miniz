@@ -126,6 +126,7 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
     def __init__(self, name: str | None = None):
         super().__init__()
         self.name = name
+        self.runtime_type = IOOPDefinition.runtime_type_constructor(self)
 
         self._scope = Scope()
 
