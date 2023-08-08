@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, Generic
 
 from miniz.generic.generic_construction import IConstructor
 from miniz.generic.function import GenericFunction
@@ -542,24 +542,28 @@ class GenericTypeclass(GenericOOPObject):
         return declaration + '}'
 
 
-class ConstructedClass(Class):
+class IConstructedObject(Generic[_T]):
+    origin: IConstructor[_T]
+
+
+class ConstructedClass(Class, IConstructedObject[Class]):
     def __init__(self, name: str, constructor: GenericClass, arguments: dict[Parameter | GenericParameter, ObjectProtocol]):
         super().__init__(name)
-        self.constructor = constructor
+        self.origin = constructor
         self.arguments = arguments
 
 
-class ConstructedInterface(Interface):
+class ConstructedInterface(Interface, IConstructedObject[Interface]):
     def __init__(self, name: str, constructor: GenericInterface, arguments: dict[Parameter | GenericParameter, ImplementsType | Parameter | GenericParameter]):
         super().__init__(name)
-        self.constructor = constructor
+        self.origin = constructor
         self.args = arguments
 
 
-class ConstructedTypeclass(Typeclass):
+class ConstructedTypeclass(Typeclass, IConstructedObject[Typeclass]):
     def __init__(self, name: str, constructor: GenericTypeclass):
         super().__init__(name)
-        self.constructor = constructor
+        self.origin = constructor
 
 
 if __name__ == '__main__':
