@@ -3,6 +3,7 @@ from miniz.interfaces.execution import ITarget
 from miniz.interfaces.signature import ISignature
 from miniz.ownership import Owned
 from miniz.core import ImplementsType
+from miniz.vm.instruction import Instruction
 
 
 class IReturnParameter(Owned["IFunctionSignature"]):
@@ -26,7 +27,11 @@ class ILocal(ITarget["IFunction"], INamed):
 
 
 class IFunctionBody(Owned["IFunction"]):
-    ...
+    instructions: list[Instruction] | None
+
+    @property
+    def has_body(self) -> bool:
+        return self.instructions is not None
 
 
 class IFunction(Owned["Module"]):

@@ -27,10 +27,6 @@ class FunctionBody(IFunctionBody):
         self._instructions.append += on_add_instruction
 
     @property
-    def has_body(self):
-        return self._instructions is not None
-
-    @property
     def owner(self):
         return super().owner
 
@@ -41,6 +37,10 @@ class FunctionBody(IFunctionBody):
     @property
     def instructions(self):
         return self._instructions
+
+    @instructions.deleter
+    def instructions(self):
+        self._instructions = None
 
 
 class Local(ILocal):

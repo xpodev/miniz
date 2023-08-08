@@ -26,8 +26,9 @@ class GenericFunction(IFunction, IConstructor[Function]):
     _locals: NotifyingList[Local]
 
     def __init__(self, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any):
+        super().__init__()
+
         self.signature = GenericFunctionSignature(name, return_type)
-        super().__init__(name)
 
         self.body = FunctionBody(self)
         self._locals = NotifyingList()
