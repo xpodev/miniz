@@ -14,7 +14,7 @@ from utils import NotifyingList
 class FunctionBody(IFunctionBody):
     _instructions: NotifyingList[Instruction] | None
 
-    def __init__(self, owner: "Function"):
+    def __init__(self, owner: "IFunction"):
         super().__init__(owner=owner)
         self._instructions = NotifyingList()
 
