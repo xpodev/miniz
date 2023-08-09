@@ -15,7 +15,7 @@ class Binding(Enum):
     Instance = "Instance"
 
 
-class IOOPMember(Owned["IClass | IInterface | ITypeclass | IStructure"], INamed):
+class IOOPMember(Owned["IOOPDefinition"], INamed):
     binding: Binding
 
     @property
