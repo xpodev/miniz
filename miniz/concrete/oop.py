@@ -154,6 +154,7 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
                     if group is None:
                         group = OverloadGroup(member.name, None, owner=self)
                         self._scope.create_name(group.name, group)
+                    group.overloads.append(member)
                 member.owner = self
                 return
             if member.name:
