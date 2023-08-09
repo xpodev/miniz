@@ -22,9 +22,9 @@ class IConstructor(Generic[_T]):
     def construct(
             self,
             args: dict[_U, ObjectProtocol | _U],
-            factory: Callable[[], _T] = None,
+            factory: Callable[[], "_T | IConstructed[_T]"] = None,
             generic_factory: Callable[[], "IConstructor[_T]"] = None
-    ) -> "_T | IConstructor[_T]":
+    ) -> "_T | IConstructed[_T] | IConstructor[_T]":
         ...
 
 
