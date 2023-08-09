@@ -105,7 +105,7 @@ class Module(IModule):
                     if member.name:
                         group = self._scope.lookup_name(member.name, default=None)
                         if group is None:
-                            self._scope.create_name(member.name, group := OverloadGroup(member.name, None))
+                            self._scope.create_name(member.name, group := OverloadGroup(member.name, None, owner=self))
                         group.overloads.append(member)
                 case IClass():
                     collection = self._classes
