@@ -1,12 +1,12 @@
 from miniz.interfaces.base import INamed
 from miniz.ownership import Owned
-from miniz.core import ImplementsType
+from miniz.core import TypeProtocol
 
 
 class IParameter(Owned["ISignature"], INamed):
     index: int  # index of the parameter, including all types of parameters
     local_index: int  # index of positional or named parameter in its respective list
-    parameter_type: ImplementsType
+    parameter_type: TypeProtocol
     has_default_value: bool
 
     @property

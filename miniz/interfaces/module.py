@@ -1,4 +1,4 @@
-from miniz.core import ImplementsType, ObjectProtocol
+from miniz.core import TypeProtocol, ObjectProtocol
 from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure
@@ -6,7 +6,7 @@ from miniz.ownership import Owned
 
 
 class IGlobal(Owned["IModuleBase"], INamed):
-    type: ImplementsType
+    type: TypeProtocol
     value: ObjectProtocol | None
 
 

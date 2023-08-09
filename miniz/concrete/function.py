@@ -6,7 +6,7 @@ from miniz.template.template_construction import IConstructor
 from miniz.interfaces.function import IFunction, ILocal, IFunctionBody
 from miniz.ownership import Owned
 from miniz.concrete.signature import Parameter
-from miniz.core import ImplementsType
+from miniz.core import TypeProtocol
 from miniz.vm.instruction import Instruction
 from utils import NotifyingList
 
@@ -45,9 +45,9 @@ class FunctionBody(IFunctionBody):
 
 class Local(ILocal):
     name: str
-    type: ImplementsType | Parameter
+    type: TypeProtocol | Parameter
 
-    def __init__(self, name: str, type: ImplementsType | Parameter):
+    def __init__(self, name: str, type: TypeProtocol | Parameter):
         super().__init__()
         self.name = name
         self.type = type
@@ -71,7 +71,7 @@ class Function(IFunction):
 
     _locals: NotifyingList[Local]
 
-    def __init__(self, name: str = None, return_type: ImplementsType = None):
+    def __init__(self, name: str = None, return_type: TypeProtocol = None):
         Owned.__init__(self)
 
         self.signature = FunctionSignature(name, return_type)
@@ -139,7 +139,7 @@ class Function(IFunction):
         return self.signature.return_type
 
     @return_type.setter
-    def return_type(self, value: ImplementsType):
+    def return_type(self, value: TypeProtocol):
         self.signature.return_type = value
 
     def __repr__(self):

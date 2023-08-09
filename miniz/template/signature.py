@@ -4,7 +4,7 @@ from typing import Callable, TypeVar, TypeAlias
 from miniz.template.template_construction import IConstructor, recursive_resolve
 from miniz.concrete.signature import Signature, Parameter
 from miniz.interfaces.signature import ISignature, IParameter
-from miniz.core import ObjectProtocol, ImplementsType
+from miniz.core import ObjectProtocol, TypeProtocol
 from miniz.ownership import Owned
 from utils import NotifyingList, DependencyGraph
 
@@ -30,14 +30,14 @@ def get_parameter_dependencies(args: GenericArguments, parameter: "Parameter | G
             raise TypeError
         return [parameter_type]
     else:
-        if not isinstance(parameter_type, ImplementsType):
+        if not isinstance(parameter_type, TypeProtocol):
             return [parameter_type]
     return []
 
 
 class ParameterTemplate(IConstructor[Parameter], IParameter, Owned["GenericSignature"]):
     default_value: ObjectProtocol | None
-    parameter_type: ImplementsType | IParameter
+    parameter_type: TypeProtocol | IParameter
 
     def __init__(self, name: str, type: "ImplementsType | GenericParameter | Parameter" = None, default_value: ObjectProtocol = None):
         super().__init__()

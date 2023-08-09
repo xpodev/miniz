@@ -2,12 +2,12 @@ from miniz.interfaces.base import INamed
 from miniz.interfaces.execution import ITarget
 from miniz.interfaces.signature import ISignature
 from miniz.ownership import Owned
-from miniz.core import ImplementsType
+from miniz.core import TypeProtocol
 from miniz.vm.instruction import Instruction
 
 
 class IReturnParameter(Owned["IFunctionSignature"]):
-    parameter_type: ImplementsType
+    parameter_type: TypeProtocol
 
 
 class IFunctionSignature(ISignature, Owned["IFunction"]):
@@ -18,7 +18,7 @@ class IFunctionSignature(ISignature, Owned["IFunction"]):
         return self.return_parameter.parameter_type
 
     @return_type.setter
-    def return_type(self, value: ImplementsType):
+    def return_type(self, value: TypeProtocol):
         self.return_parameter.parameter_type = value
 
 

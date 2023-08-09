@@ -1,13 +1,13 @@
 from miniz.interfaces.signature import ISignature, IParameter
-from miniz.core import ImplementsType, ObjectProtocol
+from miniz.core import TypeProtocol, ObjectProtocol
 from utils import NotifyingList
 
 
 class Parameter(IParameter):
-    parameter_type: ImplementsType
+    parameter_type: TypeProtocol
     default_value: ObjectProtocol | None
 
-    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None):
+    def __init__(self, name: str, type: TypeProtocol = None, default_value: ObjectProtocol = None):
         super().__init__()
         self.name = name
         self.parameter_type = type

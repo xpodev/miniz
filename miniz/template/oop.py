@@ -6,7 +6,7 @@ from miniz.template.signature import ParameterTemplate, SignatureTemplate, Gener
 from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, Member
 from miniz.concrete.signature import Parameter, Signature
 from miniz.interfaces.oop import IField, IMethod, IProperty, IOOPDefinition
-from miniz.type_system import ImplementsType, ObjectProtocol, Any
+from miniz.type_system import TypeProtocol, ObjectProtocol, Any
 from utils import NotifyingList
 
 _T = TypeVar("_T")
@@ -33,11 +33,11 @@ def order_arguments(args: GenericArguments, signature: Signature | SignatureTemp
 
 
 class FieldTemplate(Member, IConstructor[Field], IField):
-    field_type: ImplementsType | Parameter | ParameterTemplate
+    field_type: TypeProtocol | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
     access: Access
 
-    def __init__(self, name: str, type: ImplementsType | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
+    def __init__(self, name: str, type: TypeProtocol | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
                  access: Access = Access.ReadWrite):
         Member.__init__(self, name, binding)
         IField.__init__(self)
@@ -52,7 +52,7 @@ class FieldTemplate(Member, IConstructor[Field], IField):
         if isinstance(type, (ParameterTemplate, Parameter)):
             result = (generic_factory or FieldTemplate)(self.name, type, default_value)
         else:
-            assert isinstance(type, ImplementsType)
+            assert isinstance(type, TypeProtocol)
             result = (factory or Field)(self.name, type, default_value)
 
         result.binding = self.binding
@@ -75,7 +75,7 @@ class FieldTemplate(Member, IConstructor[Field], IField):
 
 
 class MethodTemplate(FunctionTemplate, IMethod, Member):
-    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | ParameterTemplate = Any, binding: Binding = Binding.Instance):
+    def __init__(self, name: str = None, return_type: TypeProtocol | Parameter | ParameterTemplate = Any, binding: Binding = Binding.Instance):
         FunctionTemplate.__init__(self, name, return_type)
         IMethod.__init__(self)
         Member.__init__(self, name, binding)
@@ -92,13 +92,13 @@ class MethodTemplate(FunctionTemplate, IMethod, Member):
 
 
 class PropertyTemplate(Member, IConstructor[Property], IProperty):
-    property_type: ImplementsType | Parameter | ParameterTemplate
+    property_type: TypeProtocol | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
 
     _getter: MethodTemplate | None
     _setter: MethodTemplate | None
 
-    def __init__(self, name: str, type: ImplementsType | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
+    def __init__(self, name: str, type: TypeProtocol | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
         Member.__init__(self, name, binding)
         IProperty.__init__(self)
 
@@ -134,7 +134,7 @@ class PropertyTemplate(Member, IConstructor[Property], IProperty):
         if isinstance(type, (Parameter, ParameterTemplate)):
             result = (generic_factory or PropertyTemplate)(self.name, type, default_value)
         else:
-            assert isinstance(type, ImplementsType)
+            assert isinstance(type, TypeProtocol)
             result = (factory or Property)(self.name, type, default_value)
 
         result.binding = self.binding
@@ -334,7 +334,7 @@ class OOPObjectTemplate(IOOPDefinition, IConstructor["ConstructedClass | Constru
         return result
 
 
-class ClassTemplate(OOPObjectTemplate, ImplementsType):
+class ClassTemplate(OOPObjectTemplate, TypeProtocol):
     _base: "Class | GenericClass | ConstructedClass | None"
 
     _interfaces: list["GenericInterface | Interface"]
@@ -371,10 +371,10 @@ class ClassTemplate(OOPObjectTemplate, ImplementsType):
     def nested_definitions(self):
         return self._nested_definitions
 
-    def assignable_to(self, target: ImplementsType) -> bool:
+    def assignable_to(self, target: TypeProtocol) -> bool:
         return target is self
 
-    def assignable_from(self, source: ImplementsType) -> bool:
+    def assignable_from(self, source: TypeProtocol) -> bool:
         if source is self:
             return True
 
@@ -554,7 +554,7 @@ class ConstructedClass(Class, IConstructedObject[Class]):
 
 
 class ConstructedInterface(Interface, IConstructedObject[Interface]):
-    def __init__(self, name: str, constructor: InterfaceTemplate, arguments: dict[Parameter | ParameterTemplate, ImplementsType | Parameter | ParameterTemplate]):
+    def __init__(self, name: str, constructor: InterfaceTemplate, arguments: dict[Parameter | ParameterTemplate, TypeProtocol | Parameter | ParameterTemplate]):
         super().__init__(name)
         self.origin = constructor
         self.args = arguments

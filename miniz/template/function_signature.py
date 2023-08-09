@@ -5,17 +5,17 @@ from miniz.template.template_construction import IConstructor, recursive_resolve
 from miniz.template.signature import SignatureTemplate, ParameterTemplate
 from miniz.concrete.signature import Parameter
 from miniz.interfaces.function import IFunctionSignature, IReturnParameter
-from miniz.type_system import ImplementsType, Any, ObjectProtocol
+from miniz.type_system import TypeProtocol, Any, ObjectProtocol
 
 
 class ReturnParameterTemplate(IReturnParameter):
-    def __init__(self, signature: "FunctionSignatureTemplate", parameter_type: ImplementsType | Parameter | ParameterTemplate = None):
+    def __init__(self, signature: "FunctionSignatureTemplate", parameter_type: TypeProtocol | Parameter | ParameterTemplate = None):
         super().__init__(owner=signature)
         self.parameter_type = parameter_type
 
 
 class FunctionSignatureTemplate(SignatureTemplate, IFunctionSignature):
-    def __init__(self, name: str = None, return_type: ImplementsType | Parameter = Any):
+    def __init__(self, name: str = None, return_type: TypeProtocol | Parameter = Any):
         super().__init__(name)
         IFunctionSignature.__init__(self)
 

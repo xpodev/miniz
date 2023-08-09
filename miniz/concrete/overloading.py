@@ -7,7 +7,7 @@ from miniz.interfaces.function import IFunction
 from miniz.ownership import Owned
 
 if typing.TYPE_CHECKING:
-    from miniz.type_system import ImplementsType
+    from miniz.type_system import TypeProtocol
 
 _T = TypeVar("_T", bound=IFunction)
 
@@ -41,7 +41,7 @@ class OverloadGroup(Owned, INamed, Generic[_T]):
 
         self.runtime_type = OverloadGroupType(self)
 
-    def get_match(self, args: list["ImplementsType"], kwargs: list[tuple[str, "ImplementsType"]], *, strict: bool = False, recursive: bool = False) -> list[_T]:
+    def get_match(self, args: list["TypeProtocol"], kwargs: list[tuple[str, "TypeProtocol"]], *, strict: bool = False, recursive: bool = False) -> list[_T]:
         from miniz.type_system import assignable_to, are_identical
 
         if recursive:

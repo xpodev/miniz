@@ -6,7 +6,7 @@ from miniz.concrete.overloading import OverloadGroup
 from miniz.interfaces.base import INamed
 from miniz.interfaces.function import IFunction
 from miniz.ownership import Owned
-from miniz.core import ImplementsType, TypeProtocol
+from miniz.core import TypeProtocol
 
 
 class Binding(Enum):
@@ -32,7 +32,7 @@ class IOOPMember(Owned["IOOPDefinition"], INamed):
 
 
 class IField(IOOPMember):
-    field_type: ImplementsType
+    field_type: TypeProtocol
 
 
 class IMethod(IOOPMember, IFunction):
@@ -40,7 +40,7 @@ class IMethod(IOOPMember, IFunction):
 
 
 class IProperty(IOOPMember):
-    property_type: ImplementsType
+    property_type: TypeProtocol
     getter: IMethod | None
     setter: IMethod | None
 

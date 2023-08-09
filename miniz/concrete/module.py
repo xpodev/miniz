@@ -2,7 +2,7 @@ from typing import TypeVar
 
 from miniz.concrete.function import Function
 from miniz.concrete.overloading import OverloadGroup
-from miniz.core import ImplementsType, TypeProtocol
+from miniz.core import TypeProtocol
 from miniz.template.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
 from miniz.concrete.oop import Class, Interface, Typeclass
 from miniz.interfaces.base import INamed, ScopeProtocol
@@ -21,7 +21,7 @@ _SENTINEL = object()
 
 
 class GlobalValue(IGlobal, Owned["Module"]):
-    def __init__(self, name: str, type: ImplementsType, default_value: ObjectProtocol | None = None):
+    def __init__(self, name: str, type: TypeProtocol, default_value: ObjectProtocol | None = None):
         super().__init__()
         self.name = name
         self.type = type

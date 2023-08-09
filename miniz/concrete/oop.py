@@ -7,7 +7,7 @@ from miniz.concrete.overloading import OverloadGroup
 from miniz.interfaces.base import ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable, IOOPDefinition
-from miniz.core import ImplementsType, ObjectProtocol, TypeProtocol
+from miniz.core import TypeProtocol, ObjectProtocol
 from utils import NotifyingList
 from zs.zs2miniz.lib import Scope
 
@@ -26,11 +26,11 @@ class Member(IOOPMember):
 
 
 class Field(Member, IField):
-    field_type: ImplementsType
+    field_type: TypeProtocol
     default_value: ObjectProtocol | None
     access: Access
 
-    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance, access: Access = Access.ReadWrite):
+    def __init__(self, name: str, type: TypeProtocol = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance, access: Access = Access.ReadWrite):
         super().__init__(name, binding)
         self.field_type = type
         self.default_value = default_value
@@ -57,7 +57,7 @@ class Field(Member, IField):
 
 
 class Method(Function, Member, IMethod):
-    def __init__(self, name: str = None, return_type: ImplementsType = None, binding: Binding = Binding.Instance):
+    def __init__(self, name: str = None, return_type: TypeProtocol = None, binding: Binding = Binding.Instance):
         Function.__init__(self, name, return_type)
         Member.__init__(self, name, binding)
         IMethod.__init__(self)
@@ -67,13 +67,13 @@ class Method(Function, Member, IMethod):
 
 
 class Property(Member, IProperty):
-    type: ImplementsType
+    type: TypeProtocol
     default_value: ObjectProtocol | None
 
     _getter: Method | None
     _setter: Method | None
 
-    def __init__(self, name: str, type: ImplementsType = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
+    def __init__(self, name: str, type: TypeProtocol = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
         super().__init__(name, binding)
         IProperty.__init__(self)
         self.type = type
@@ -398,7 +398,7 @@ class Interface(IInterface):
 @dataclass(slots=True)
 class TypeclassImplementation:
     typeclass: "Typeclass"
-    type: ImplementsType
+    type: TypeProtocol
     implementation: Class
 
     def __repr__(self):
@@ -418,7 +418,7 @@ class Typeclass(ITypeclass):
     _properties: NotifyingList[Property]
     _constructors: NotifyingList[Method]
 
-    _implementations: dict[ImplementsType, TypeclassImplementation]
+    _implementations: dict[TypeProtocol, TypeclassImplementation]
 
     # _constructor: GenericOverload[Method]  todo
 
@@ -495,13 +495,13 @@ class Typeclass(ITypeclass):
     def constructors(self):
         return self._constructors
 
-    def add_implementation(self, type: ImplementsType, implementation_class: Class):
+    def add_implementation(self, type: TypeProtocol, implementation_class: Class):
         if type in self._implementations:
             type_name = type.name if isinstance(type, (Class, Interface, Typeclass)) else type
             raise TypeError(f"Typeclass {self.name} is already implemented for type {type_name}")
         self._implementations[type] = TypeclassImplementation(self, type, implementation_class)
 
-    def remove_implementation(self, type: ImplementsType):
+    def remove_implementation(self, type: TypeProtocol):
         if type not in self._implementations:
             type_name = type.name if isinstance(type, (Class, Interface, Typeclass)) else type
             raise TypeError(f"Type {type_name} does not implement typeclass {self.name}")

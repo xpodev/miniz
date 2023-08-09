@@ -16,6 +16,3 @@ class TypeProtocol(ObjectProtocol):
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
         raise NotImplementedError
-
-
-ImplementsType = TypeProtocol

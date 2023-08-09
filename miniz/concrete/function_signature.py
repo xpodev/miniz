@@ -1,17 +1,17 @@
 from miniz.concrete.signature import Signature
 from miniz.interfaces.function import IFunctionSignature, IReturnParameter
 from miniz.ownership import Owned
-from miniz.core import ImplementsType
+from miniz.core import TypeProtocol
 
 
 class ReturnParameter(IReturnParameter):
-    def __init__(self, signature: "FunctionSignature", parameter_type: ImplementsType = None):
+    def __init__(self, signature: "FunctionSignature", parameter_type: TypeProtocol = None):
         super().__init__(owner=signature)
         self.parameter_type = parameter_type
 
 
 class FunctionSignature(Signature, IFunctionSignature, Owned["Function"]):
-    def __init__(self, name: str = None, return_type: ImplementsType = None):
+    def __init__(self, name: str = None, return_type: TypeProtocol = None):
         super().__init__(name)
         Owned.__init__(self)
 

@@ -5,7 +5,7 @@ Objects defined in this module should not be exposed to the Z# environment.
 """
 
 from miniz.concrete.oop import Class, Method
-from miniz.core import TypeProtocol, ImplementsType, ObjectProtocol
+from miniz.core import TypeProtocol, ObjectProtocol
 from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.oop import Binding, IClass, IOOPDefinition
 from miniz.vm import instructions as vm
@@ -24,7 +24,7 @@ def are_identical(left: TypeProtocol, right: TypeProtocol) -> bool:
 
 
 def is_type(__object) -> bool:
-    if isinstance(__object, ImplementsType):
+    if isinstance(__object, TypeProtocol):
         return True
 
 

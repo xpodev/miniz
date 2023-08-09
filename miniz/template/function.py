@@ -6,7 +6,7 @@ from miniz.template.function_signature import FunctionSignatureTemplate
 from miniz.template.signature import ParameterTemplate
 from miniz.concrete.signature import Parameter
 from miniz.interfaces.function import IFunction
-from miniz.type_system import ImplementsType, Any, ObjectProtocol
+from miniz.type_system import TypeProtocol, Any, ObjectProtocol
 from utils import NotifyingList
 
 _T = TypeVar("_T")
@@ -25,7 +25,7 @@ class FunctionTemplate(IFunction, IConstructor[Function]):
 
     _locals: NotifyingList[Local]
 
-    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | ParameterTemplate = Any):
+    def __init__(self, name: str = None, return_type: TypeProtocol | Parameter | ParameterTemplate = Any):
         super().__init__()
 
         self.signature = FunctionSignatureTemplate(name, return_type)
@@ -74,7 +74,7 @@ class FunctionTemplate(IFunction, IConstructor[Function]):
         return self.signature.return_type
 
     @return_type.setter
-    def return_type(self, value: ImplementsType):
+    def return_type(self, value: TypeProtocol):
         self.signature.return_type = value
 
     def construct(
