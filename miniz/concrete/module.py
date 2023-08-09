@@ -15,6 +15,7 @@ from utils import NotifyingList
 from zs.zs2miniz.lib import Scope
 
 _T = TypeVar("_T")
+_U = TypeVar("_U")
 
 _SENTINEL = object()
 
@@ -180,7 +181,7 @@ class Module(IModule):
         ]
         # return self._scope.defined_items
 
-    def get_name(self, name: str, *, default: _T = _SENTINEL) -> Owned["Module"] | _T:
+    def get_name(self, name: str, *, default: _U = _SENTINEL) -> Owned["Module"] | _U:
         if default is _SENTINEL:
             return self._scope.lookup_name(name, recursive_lookup=False)
         return self._scope.lookup_name(name, recursive_lookup=False, default=default)
