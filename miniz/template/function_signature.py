@@ -1,7 +1,7 @@
 from typing import Callable
 
 from miniz.concrete.function_signature import FunctionSignature
-from miniz.template.generic_construction import IConstructor, recursive_resolve
+from miniz.template.template_construction import IConstructor, recursive_resolve
 from miniz.template.signature import GenericSignature, GenericParameter
 from miniz.concrete.signature import Parameter
 from miniz.interfaces.function import IFunctionSignature, IReturnParameter

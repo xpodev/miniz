@@ -1,7 +1,7 @@
 from typing import Callable, TypeVar
 
 from miniz.concrete.function import Function, FunctionBody, Local
-from miniz.template.generic_construction import IConstructor
+from miniz.template.template_construction import IConstructor
 from miniz.template.function_signature import GenericFunctionSignature
 from miniz.template.signature import GenericParameter
 from miniz.concrete.signature import Parameter

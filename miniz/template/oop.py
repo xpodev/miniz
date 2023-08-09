@@ -1,6 +1,6 @@
 from typing import TypeVar, Callable, Generic
 
-from miniz.template.generic_construction import IConstructor
+from miniz.template.template_construction import IConstructor
 from miniz.template.function import GenericFunction
 from miniz.template.signature import GenericParameter, GenericSignature, GenericArguments
 from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, Member
