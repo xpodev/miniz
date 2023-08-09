@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Callable, TypeVar, TypeAlias
 
-from miniz.generic.generic_construction import IConstructor, recursive_resolve
+from miniz.template.generic_construction import IConstructor, recursive_resolve
 from miniz.concrete.signature import Signature, Parameter
 from miniz.interfaces.signature import ISignature, IParameter
 from miniz.core import ObjectProtocol, ImplementsType

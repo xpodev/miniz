@@ -3,7 +3,7 @@ from typing import TypeVar
 from miniz.concrete.function import Function
 from miniz.concrete.overloading import OverloadGroup
 from miniz.core import ImplementsType, TypeProtocol
-from miniz.generic.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
+from miniz.template.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
 from miniz.concrete.oop import Class, Interface, Typeclass
 from miniz.interfaces.base import INamed, ScopeProtocol
 from miniz.interfaces.function import IFunction

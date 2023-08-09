@@ -1,10 +1,10 @@
 from dataclasses import dataclass, Field
 
 from miniz.concrete.function import Function
-from miniz.generic.function import GenericFunction
-from miniz.generic.generic_construction import IConstructor
-from miniz.generic.oop import GenericField
-from miniz.generic.signature import GenericParameter
+from miniz.template.function import GenericFunction
+from miniz.template.generic_construction import IConstructor
+from miniz.template.oop import GenericField
+from miniz.template.signature import GenericParameter
 from miniz.concrete.signature import Parameter
 from miniz.type_system import ObjectProtocol
 from miniz.vm.instruction import Instruction

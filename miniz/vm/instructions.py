@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from miniz.concrete.function import Function, Local
-from miniz.generic.signature import GenericParameter
+from miniz.template.signature import GenericParameter
 from miniz.concrete.oop import Field, Method
 from miniz.concrete.signature import Parameter
 from miniz.core import ObjectProtocol

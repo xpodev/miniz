@@ -2,7 +2,7 @@
 This module contains the `Function` class, which represents a Z# function.
 """
 from miniz.concrete.function_signature import FunctionSignature
-from miniz.generic.generic_construction import IConstructor
+from miniz.template.generic_construction import IConstructor
 from miniz.interfaces.function import IFunction, ILocal, IFunctionBody
 from miniz.ownership import Owned
 from miniz.concrete.signature import Parameter
