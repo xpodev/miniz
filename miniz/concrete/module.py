@@ -106,7 +106,6 @@ class Module(IModule):
                         if group is None:
                             self._scope.create_name(member.name, group := OverloadGroup(member.name, None))
                         group.overloads.append(member)
-                    return # self._functions.append(member)
                 case IClass():
                     collection = self._classes
                 case IInterface():
@@ -121,7 +120,7 @@ class Module(IModule):
                     collection = self._module_apis
             if collection is not None:
                 collection.append(member)
-            if isinstance(member, INamed):
+            if isinstance(member, INamed) and not isinstance(member, IFunction):
                 self._scope.create_name(member.name, member)
             member.owner = self
 
