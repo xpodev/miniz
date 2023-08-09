@@ -1,8 +1,8 @@
 from typing import TypeVar, Callable, Generic
 
 from miniz.template.template_construction import IConstructor
-from miniz.template.function import GenericFunction
-from miniz.template.signature import GenericParameter, GenericSignature, GenericArguments
+from miniz.template.function import FunctionTemplate
+from miniz.template.signature import ParameterTemplate, SignatureTemplate, GenericArguments
 from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, Member
 from miniz.concrete.signature import Parameter, Signature
 from miniz.interfaces.oop import IField, IMethod, IProperty, IOOPDefinition
@@ -13,7 +13,7 @@ _T = TypeVar("_T")
 _GenericT = TypeVar("_GenericT")
 
 
-def order_arguments(args: GenericArguments, signature: Signature | GenericSignature) -> tuple:
+def order_arguments(args: GenericArguments, signature: Signature | SignatureTemplate) -> tuple:
     ordered = []
     for parameter in signature.positional_parameters:
         if parameter in args:
@@ -32,12 +32,12 @@ def order_arguments(args: GenericArguments, signature: Signature | GenericSignat
     return tuple(ordered)
 
 
-class GenericField(Member, IConstructor[Field], IField):
-    field_type: ImplementsType | Parameter | GenericParameter
+class FieldTemplate(Member, IConstructor[Field], IField):
+    field_type: ImplementsType | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
     access: Access
 
-    def __init__(self, name: str, type: ImplementsType | Parameter | GenericParameter = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
+    def __init__(self, name: str, type: ImplementsType | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
                  access: Access = Access.ReadWrite):
         Member.__init__(self, name, binding)
         IField.__init__(self)
@@ -46,11 +46,11 @@ class GenericField(Member, IConstructor[Field], IField):
         self.access = access
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> "Field | GenericField":
-        type = args.get(self.field_type, self.field_type.construct(args) if isinstance(self.field_type, GenericParameter) else self.field_type)
+        type = args.get(self.field_type, self.field_type.construct(args) if isinstance(self.field_type, ParameterTemplate) else self.field_type)
         default_value = self.default_value  # todo: generic eval default value
 
-        if isinstance(type, (GenericParameter, Parameter)):
-            result = (generic_factory or GenericField)(self.name, type, default_value)
+        if isinstance(type, (ParameterTemplate, Parameter)):
+            result = (generic_factory or FieldTemplate)(self.name, type, default_value)
         else:
             assert isinstance(type, ImplementsType)
             result = (factory or Field)(self.name, type, default_value)
@@ -74,14 +74,14 @@ class GenericField(Member, IConstructor[Field], IField):
         # return f"{declare} {self.name}[{self.binding.name}]: {self.field_type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class GenericMethod(GenericFunction, IMethod, Member):
-    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any, binding: Binding = Binding.Instance):
-        GenericFunction.__init__(self, name, return_type)
+class MethodTemplate(FunctionTemplate, IMethod, Member):
+    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | ParameterTemplate = Any, binding: Binding = Binding.Instance):
+        FunctionTemplate.__init__(self, name, return_type)
         IMethod.__init__(self)
         Member.__init__(self, name, binding)
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> "Method | GenericMethod":
-        result = super().construct(args, factory=Method, generic_factory=GenericMethod)
+        result = super().construct(args, factory=Method, generic_factory=MethodTemplate)
 
         result.binding = self.binding
 
@@ -91,14 +91,14 @@ class GenericMethod(GenericFunction, IMethod, Member):
         return f"{self.signature} [{self.binding.name}] {{}}"
 
 
-class GenericProperty(Member, IConstructor[Property], IProperty):
-    property_type: ImplementsType | Parameter | GenericParameter
+class PropertyTemplate(Member, IConstructor[Property], IProperty):
+    property_type: ImplementsType | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
 
-    _getter: GenericMethod | None
-    _setter: GenericMethod | None
+    _getter: MethodTemplate | None
+    _setter: MethodTemplate | None
 
-    def __init__(self, name: str, type: ImplementsType | Parameter | GenericParameter = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
+    def __init__(self, name: str, type: ImplementsType | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
         Member.__init__(self, name, binding)
         IProperty.__init__(self)
 
@@ -128,11 +128,11 @@ class GenericProperty(Member, IConstructor[Property], IProperty):
         self._setter = value
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> Property:
-        type = args.get(self.property_type, self.property_type.construct(args) if isinstance(self.property_type, GenericParameter) else self.property_type)
+        type = args.get(self.property_type, self.property_type.construct(args) if isinstance(self.property_type, ParameterTemplate) else self.property_type)
         default_value = self.default_value  # todo: generic eval default value
 
-        if isinstance(type, (Parameter, GenericParameter)):
-            result = (generic_factory or GenericProperty)(self.name, type, default_value)
+        if isinstance(type, (Parameter, ParameterTemplate)):
+            result = (generic_factory or PropertyTemplate)(self.name, type, default_value)
         else:
             assert isinstance(type, ImplementsType)
             result = (factory or Property)(self.name, type, default_value)
@@ -146,27 +146,27 @@ class GenericProperty(Member, IConstructor[Property], IProperty):
             f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class GenericOOPObject(IOOPDefinition, IConstructor["ConstructedClass | ConstructedInterface | ConstructedTypeclass"]):
+class OOPObjectTemplate(IOOPDefinition, IConstructor["ConstructedClass | ConstructedInterface | ConstructedTypeclass"]):
     _members: dict[str, Member]
     _member_list: list[Member]
 
-    _fields: NotifyingList[GenericField | Field]
-    _methods: NotifyingList[GenericMethod | Method]
-    _properties: NotifyingList[GenericProperty | Property]
-    _constructors: NotifyingList[GenericMethod | Method]
+    _fields: NotifyingList[FieldTemplate | Field]
+    _methods: NotifyingList[MethodTemplate | Method]
+    _properties: NotifyingList[PropertyTemplate | Property]
+    _constructors: NotifyingList[MethodTemplate | Method]
 
-    _signature: Signature | GenericSignature
+    _signature: Signature | SignatureTemplate
 
     _cache: dict[tuple, "GenericClass | ConstructedClass"]
 
     constructor: "GenericClass | GenericInterface | GenericTypeclass"
-    arguments: dict[Parameter | GenericParameter, Parameter | GenericParameter | ObjectProtocol]
+    arguments: dict[Parameter | ParameterTemplate, Parameter | ParameterTemplate | ObjectProtocol]
 
-    def __init__(self, name_or_signature: str | Signature | GenericSignature, constructor: "GenericClass" = None, arguments: GenericArguments = None):
+    def __init__(self, name_or_signature: str | Signature | SignatureTemplate, constructor: "ClassTemplate" = None, arguments: GenericArguments = None):
         super().__init__()
 
         if name_or_signature is None or isinstance(name_or_signature, str):
-            self._signature = GenericSignature(name_or_signature)
+            self._signature = SignatureTemplate(name_or_signature)
         else:
             self._signature = name_or_signature
 
@@ -255,7 +255,7 @@ class GenericOOPObject(IOOPDefinition, IConstructor["ConstructedClass | Construc
         return self._signature
 
     @signature.setter
-    def signature(self, value: Signature | GenericSignature):
+    def signature(self, value: Signature | SignatureTemplate):
         self._signature = value
 
     @property
@@ -296,28 +296,28 @@ class GenericOOPObject(IOOPDefinition, IConstructor["ConstructedClass | Construc
         fields = []
         for field in self.fields:
             result = field
-            if isinstance(field, GenericField):
+            if isinstance(field, FieldTemplate):
                 result = field.construct(args)
             fields.append(result)
 
         methods = []
         for method in self.methods:
             result = method
-            if isinstance(method, GenericMethod):
+            if isinstance(method, MethodTemplate):
                 result = method.construct(args)
             methods.append(result)
 
         props = []
         for prop in self.properties:
             result = prop
-            if isinstance(prop, GenericProperty):
+            if isinstance(prop, PropertyTemplate):
                 result = prop.construct(args)
             props.append(result)
 
         if any(
                 isinstance(item, IConstructor) for item in [signature, *fields, *methods, *props]
         ):
-            result = (generic_factory or GenericClass)(signature, constructor=self.constructor or self, arguments=args)
+            result = (generic_factory or ClassTemplate)(signature, constructor=self.constructor or self, arguments=args)
         else:
             result = (factory or ConstructedClass)(self.name, constructor=self.constructor or self, arguments=args)
 
@@ -334,14 +334,14 @@ class GenericOOPObject(IOOPDefinition, IConstructor["ConstructedClass | Construc
         return result
 
 
-class GenericClass(GenericOOPObject, ImplementsType):
+class ClassTemplate(OOPObjectTemplate, ImplementsType):
     _base: "Class | GenericClass | ConstructedClass | None"
 
     _interfaces: list["GenericInterface | Interface"]
 
     _nested_definitions: NotifyingList["GenericNestedClass | GenericNestedInterface | NestedClass | NestedInterface"]
 
-    def __init__(self, name_or_signature: str | Signature | GenericSignature, base: "Class | GenericClass | ConstructedClass | None" = None, constructor: "GenericClass" = None,
+    def __init__(self, name_or_signature: str | Signature | SignatureTemplate, base: "Class | GenericClass | ConstructedClass | None" = None, constructor: "ClassTemplate" = None,
                  arguments: GenericArguments = None):
         super().__init__(name_or_signature, constructor, arguments)
 
@@ -385,7 +385,7 @@ class GenericClass(GenericOOPObject, ImplementsType):
 
     def construct(
             self,
-            args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
+            args: dict[Parameter | ParameterTemplate, ObjectProtocol | Parameter | ParameterTemplate],
             factory: Callable[[], _T | Class] = None,
             generic_factory: Callable[[], "_GenericT | GenericClass"] = None,
             **kwargs
@@ -401,14 +401,14 @@ class GenericClass(GenericOOPObject, ImplementsType):
         interfaces = []
         for interface in self.interfaces:
             result = interface
-            if isinstance(interface, GenericInterface):
+            if isinstance(interface, InterfaceTemplate):
                 result = interface.construct(args)
             interfaces.append(result)
 
         if any(isinstance(item, IConstructor) for item in [base, *interfaces]):
-            factory = GenericClass
+            factory = ClassTemplate
 
-        result = super().construct(args, factory or ConstructedClass, generic_factory or GenericClass, **kwargs)
+        result = super().construct(args, factory or ConstructedClass, generic_factory or ClassTemplate, **kwargs)
 
         result.base = base
 
@@ -436,10 +436,10 @@ class GenericClass(GenericOOPObject, ImplementsType):
         # return declaration + '}'
 
 
-class GenericInterface(GenericOOPObject):
+class InterfaceTemplate(OOPObjectTemplate):
     _bases: list["Interface | GenericInterface | ConstructedInterface"]
 
-    def __init__(self, name_or_signature: str | Signature | GenericSignature, constructor: "GenericClass" = None):
+    def __init__(self, name_or_signature: str | Signature | SignatureTemplate, constructor: "ClassTemplate" = None):
         super().__init__(name_or_signature, constructor)
 
         self._bases = []
@@ -460,7 +460,7 @@ class GenericInterface(GenericOOPObject):
 
     def construct(
             self,
-            args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
+            args: dict[Parameter | ParameterTemplate, ObjectProtocol | Parameter | ParameterTemplate],
             factory: Callable[[], "_T | Interface | ConstructedInterface"] = None,
             generic_factory: Callable[[], "IConstructor[_T] | GenericInterface"] = None,
             **kwargs
@@ -472,9 +472,9 @@ class GenericInterface(GenericOOPObject):
             bases.append(base)
 
         if any(isinstance(base, IConstructor) for base in bases):
-            factory = GenericInterface
+            factory = InterfaceTemplate
 
-        result = super().construct(args, factory or ConstructedInterface, generic_factory or GenericInterface, **kwargs)
+        result = super().construct(args, factory or ConstructedInterface, generic_factory or InterfaceTemplate, **kwargs)
 
         for base in bases:
             result.bases.append(base)
@@ -497,10 +497,10 @@ class GenericInterface(GenericOOPObject):
         return declaration + '}'
 
 
-class GenericTypeclass(GenericOOPObject):
+class TypeclassTemplate(OOPObjectTemplate):
     _bases: list["Typeclass | ConstructedTypeclass | GenericTypeclass"]
 
-    def __init__(self, name_or_signature: str | Signature | GenericSignature, constructor: "GenericClass" = None):
+    def __init__(self, name_or_signature: str | Signature | SignatureTemplate, constructor: "ClassTemplate" = None):
         super().__init__(name_or_signature, constructor)
 
         self._bases = []
@@ -511,7 +511,7 @@ class GenericTypeclass(GenericOOPObject):
 
     def construct(
             self,
-            args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
+            args: dict[Parameter | ParameterTemplate, ObjectProtocol | Parameter | ParameterTemplate],
             factory: Callable[[], "_T | Typeclass | ConstructedTypeclass"] = None,
             generic_factory: Callable[[], "IConstructor[_T] | GenericTypeclass"] = None,
             **kwargs
@@ -523,9 +523,9 @@ class GenericTypeclass(GenericOOPObject):
             bases.append(base)
 
         if any(isinstance(base, IConstructor) for base in bases):
-            factory = GenericTypeclass
+            factory = TypeclassTemplate
 
-        result = super().construct(args, factory or ConstructedTypeclass, generic_factory or GenericTypeclass, **kwargs)
+        result = super().construct(args, factory or ConstructedTypeclass, generic_factory or TypeclassTemplate, **kwargs)
 
         for base in bases:
             result.bases.append(base)
@@ -547,21 +547,21 @@ class IConstructedObject(Generic[_T]):
 
 
 class ConstructedClass(Class, IConstructedObject[Class]):
-    def __init__(self, name: str, constructor: GenericClass, arguments: dict[Parameter | GenericParameter, ObjectProtocol]):
+    def __init__(self, name: str, constructor: ClassTemplate, arguments: dict[Parameter | ParameterTemplate, ObjectProtocol]):
         super().__init__(name)
         self.origin = constructor
         self.arguments = arguments
 
 
 class ConstructedInterface(Interface, IConstructedObject[Interface]):
-    def __init__(self, name: str, constructor: GenericInterface, arguments: dict[Parameter | GenericParameter, ImplementsType | Parameter | GenericParameter]):
+    def __init__(self, name: str, constructor: InterfaceTemplate, arguments: dict[Parameter | ParameterTemplate, ImplementsType | Parameter | ParameterTemplate]):
         super().__init__(name)
         self.origin = constructor
         self.args = arguments
 
 
 class ConstructedTypeclass(Typeclass, IConstructedObject[Typeclass]):
-    def __init__(self, name: str, constructor: GenericTypeclass):
+    def __init__(self, name: str, constructor: TypeclassTemplate):
         super().__init__(name)
         self.origin = constructor
 
@@ -569,30 +569,30 @@ class ConstructedTypeclass(Typeclass, IConstructedObject[Typeclass]):
 if __name__ == '__main__':
     from miniz.type_system import Type, Boolean
 
-    iiterable = GenericInterface("IIterable")
+    iiterable = InterfaceTemplate("IIterable")
     _T = Parameter("T", Type)
     iiterable.signature.positional_parameters.append(_T)
 
-    iiterator = GenericInterface("IIterator")
+    iiterator = InterfaceTemplate("IIterator")
     _IteratorT = Parameter("T", Type)
     iiterator.signature.positional_parameters.append(_IteratorT)
 
-    iiterable_get_iterator = GenericMethod(None, "get_iterator", _T)
+    iiterable_get_iterator = MethodTemplate(None, "get_iterator", _T)
     # iiterable_get_iterator = GenericMethod(None, "get_iterator", iiterator.construct({_IteratorT: _T}))
     iiterable.methods.append(iiterable_get_iterator)
 
     print(iiterable)
 
-    list_class_signature = GenericSignature("List")
+    list_class_signature = SignatureTemplate("List")
     T = Parameter("T", Type)
     list_class_signature.positional_parameters.append(T)
 
-    list_class = GenericClass(list_class_signature)
+    list_class = ClassTemplate(list_class_signature)
 
     list_class.interfaces.append(iiterable.construct({_T: T}))
 
-    list_add = GenericMethod(None, "add", Boolean)
-    list_add.positional_parameters.append(GenericParameter("item", T))
+    list_add = MethodTemplate(None, "add", Boolean)
+    list_add.positional_parameters.append(ParameterTemplate("item", T))
 
     list_length = Property("is_empty", Boolean)
 

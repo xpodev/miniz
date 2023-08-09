@@ -1,10 +1,10 @@
 from dataclasses import dataclass, Field
 
 from miniz.concrete.function import Function
-from miniz.template.function import GenericFunction
+from miniz.template.function import FunctionTemplate
 from miniz.template.generic_construction import IConstructor
-from miniz.template.oop import GenericField
-from miniz.template.signature import GenericParameter
+from miniz.template.oop import FieldTemplate
+from miniz.template.signature import ParameterTemplate
 from miniz.concrete.signature import Parameter
 from miniz.type_system import ObjectProtocol
 from miniz.vm.instruction import Instruction
@@ -20,7 +20,7 @@ class GenericInstruction(IConstructor[Instruction]):
 
 @dataclass(**_cfg)
 class Call(GenericInstruction):
-    callee: Function | GenericFunction
+    callee: Function | FunctionTemplate
     args: list[ObjectProtocol]
     kwargs: dict[str, ObjectProtocol]
 
@@ -37,12 +37,12 @@ class DynamicNameLookup(GenericInstruction):
 
 @dataclass(**_cfg)
 class LoadArgument(GenericInstruction):
-    parameter: Parameter | GenericParameter
+    parameter: Parameter | ParameterTemplate
 
 
 @dataclass(**_cfg)
 class LoadField(GenericInstruction):
-    field: Field | GenericField
+    field: Field | FieldTemplate
     instance: ObjectProtocol | None
 
 

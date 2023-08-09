@@ -10,7 +10,7 @@ from utils import NotifyingList, DependencyGraph
 
 _T = TypeVar("_T")
 _GenericT = TypeVar("_GenericT")
-GenericArguments: TypeAlias = dict["Parameter | GenericParameter", "Parameter | GenericParameter | ObjectProtocol"]
+GenericArguments: TypeAlias = dict["Parameter | ParameterTemplate", "Parameter | ParameterTemplate | ObjectProtocol"]
 
 
 _SENTINEL = Parameter('_')
@@ -26,7 +26,7 @@ def get_parameter_dependencies(args: GenericArguments, parameter: "Parameter | G
     elif parameter in args:
         return []
     elif parameter_type in args:
-        if not isinstance(parameter, GenericParameter):
+        if not isinstance(parameter, ParameterTemplate):
             raise TypeError
         return [parameter_type]
     else:
@@ -35,7 +35,7 @@ def get_parameter_dependencies(args: GenericArguments, parameter: "Parameter | G
     return []
 
 
-class GenericParameter(IConstructor[Parameter], IParameter, Owned["GenericSignature"]):
+class ParameterTemplate(IConstructor[Parameter], IParameter, Owned["GenericSignature"]):
     default_value: ObjectProtocol | None
     parameter_type: ImplementsType | IParameter
 
@@ -75,26 +75,26 @@ class GenericParameter(IConstructor[Parameter], IParameter, Owned["GenericSignat
         # if only self.type in args, construct normally
         parameter_type = recursive_resolve(args, self.parameter_type)
         default_value = self.default_value  # todo: generic eval default value
-        if isinstance(parameter_type, (GenericParameter, Parameter)):
-            result = (generic_factory or GenericParameter)(self.name, parameter_type, default_value)
+        if isinstance(parameter_type, (ParameterTemplate, Parameter)):
+            result = (generic_factory or ParameterTemplate)(self.name, parameter_type, default_value)
         else:
             result = (factory or Parameter)(self.name, parameter_type, default_value)  # todo: generic eval default value
         return result
 
     def __repr__(self):
-        return f"{self.name}: {self.parameter_type.name if isinstance(self.parameter_type, (GenericParameter, Parameter)) else self.parameter_type}" + (f" = {self.default_value}" if self.default_value is not None else "")
+        return f"{self.name}: {self.parameter_type.name if isinstance(self.parameter_type, (ParameterTemplate, Parameter)) else self.parameter_type}" + (f" = {self.default_value}" if self.default_value is not None else "")
 
 
-class GenericSignature(ISignature, IConstructor[Signature]):
+class SignatureTemplate(ISignature, IConstructor[Signature]):
     name: str | None
 
-    _parameters: dict[str, GenericParameter | Parameter]
+    _parameters: dict[str, ParameterTemplate | Parameter]
 
-    _positional_parameters: NotifyingList[GenericParameter | Parameter]
-    _named_parameters: NotifyingList[GenericParameter | Parameter]
+    _positional_parameters: NotifyingList[ParameterTemplate | Parameter]
+    _named_parameters: NotifyingList[ParameterTemplate | Parameter]
 
-    _variadic_positional_parameter: GenericParameter | Parameter | None
-    _variadic_named_parameter: GenericParameter | Parameter | None
+    _variadic_positional_parameter: ParameterTemplate | Parameter | None
+    _variadic_named_parameter: ParameterTemplate | Parameter | None
 
     def __init__(self, name: str = None):
         ISignature.__init__(self)
@@ -105,16 +105,16 @@ class GenericSignature(ISignature, IConstructor[Signature]):
         self._positional_parameters = NotifyingList()
         self._named_parameters = NotifyingList()
 
-        def on_new_parameter(_, parameter: GenericParameter):
+        def on_new_parameter(_, parameter: ParameterTemplate):
             if parameter.name in self._parameters:
                 raise ValueError(f"Parameter \'{parameter.name}\' already exists on {self}")
             self._parameters[parameter.name] = parameter
             parameter.owner = self
 
-        def on_remove_parameter(ps, parameter: int | GenericParameter):
+        def on_remove_parameter(ps, parameter: int | ParameterTemplate):
             if isinstance(parameter, int):
                 parameter = ps[parameter]
-            assert isinstance(parameter, (Parameter, GenericParameter))
+            assert isinstance(parameter, (Parameter, ParameterTemplate))
             del self._parameters[parameter.name]
             parameter.owner = None
 
@@ -132,7 +132,7 @@ class GenericSignature(ISignature, IConstructor[Signature]):
         self._variadic_positional_parameter = self._variadic_named_parameter = None
 
     @property
-    def parameters(self) -> list[Parameter | GenericParameter]:
+    def parameters(self) -> list[Parameter | ParameterTemplate]:
         result = [*self.positional_parameters, *self.named_parameters]
         if self.variadic_positional_parameter:
             result.append(self.variadic_positional_parameter)
@@ -153,7 +153,7 @@ class GenericSignature(ISignature, IConstructor[Signature]):
         return self._variadic_positional_parameter
 
     @variadic_positional_parameter.setter
-    def variadic_positional_parameter(self, value: GenericParameter | Parameter | None):
+    def variadic_positional_parameter(self, value: ParameterTemplate | Parameter | None):
         if value is None and self.variadic_positional_parameter is None:
             return
         if value is None:
@@ -170,7 +170,7 @@ class GenericSignature(ISignature, IConstructor[Signature]):
         return self._variadic_named_parameter
 
     @variadic_named_parameter.setter
-    def variadic_named_parameter(self, value: GenericParameter | Parameter | None):
+    def variadic_named_parameter(self, value: ParameterTemplate | Parameter | None):
         if value is None and self.variadic_named_parameter is None:
             return
         if value is None:
@@ -189,27 +189,27 @@ class GenericSignature(ISignature, IConstructor[Signature]):
 
     def construct(
             self,
-            args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
+            args: dict[Parameter | ParameterTemplate, ObjectProtocol | Parameter | ParameterTemplate],
             factory: Callable[[str], _T | Signature] = None,
             generic_factory: Callable[[str], "_GenericT | GenericSignature"] = None
     ) -> _T | _GenericT:
-        constructed: dict[Parameter | GenericParameter, Parameter | GenericParameter] = {}
+        constructed: dict[Parameter | ParameterTemplate, Parameter | ParameterTemplate] = {}
 
         build_order = self._get_build_order(args)
 
-        def recursive_infer(p: GenericParameter):
+        def recursive_infer(p: ParameterTemplate):
             if p in args and p.parameter_type not in args:
                 args[p.parameter_type] = args[p].runtime_type
-                if isinstance(p.parameter_type, GenericParameter):
+                if isinstance(p.parameter_type, ParameterTemplate):
                     recursive_infer(p.parameter_type)
 
         for parameter in args.copy():
-            if isinstance(parameter, GenericParameter):
+            if isinstance(parameter, ParameterTemplate):
                 recursive_infer(parameter)
 
         for parameters in build_order:
             for parameter in parameters:
-                if isinstance(parameter, GenericParameter):
+                if isinstance(parameter, ParameterTemplate):
                     if parameter not in args:
                         constructed[parameter] = args[parameter] = parameter.construct(args)
 
@@ -220,7 +220,7 @@ class GenericSignature(ISignature, IConstructor[Signature]):
         variadic_named_parameter = constructed.get(self.variadic_named_parameter, None)
 
         if any(isinstance(p, IConstructor) for p in [*positional_parameters, *named_parameters, variadic_positional_parameter, variadic_named_parameter]):
-            result = (generic_factory or GenericSignature)(self.name)
+            result = (generic_factory or SignatureTemplate)(self.name)
         else:
             result = (factory or Signature)(self.name)
 
@@ -238,7 +238,7 @@ class GenericSignature(ISignature, IConstructor[Signature]):
 
         return result
 
-    def remove_parameter(self, parameter: Parameter | GenericParameter):
+    def remove_parameter(self, parameter: Parameter | ParameterTemplate):
         if parameter.owner is not self:
             raise ValueError(f"{self} does not own {parameter}")
         index = parameter.index
@@ -288,9 +288,9 @@ if __name__ == '__main__':
     # # print(generic.construct({Y: Boolean}))
     # # print(concrete)
     #
-    generic = GenericSignature("bar")
+    generic = SignatureTemplate("bar")
 
-    A, B, C, D, E, F = [Parameter("A"), *(GenericParameter(letter) for letter in "BCDEF")]
+    A, B, C, D, E, F = [Parameter("A"), *(ParameterTemplate(letter) for letter in "BCDEF")]
     A.parameter_type = Type
     B.parameter_type = A
     C.parameter_type = B

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from miniz.concrete.function import Function, Local
-from miniz.template.signature import GenericParameter
+from miniz.template.signature import ParameterTemplate
 from miniz.concrete.oop import Field, Method
 from miniz.concrete.signature import Parameter
 from miniz.core import ObjectProtocol
@@ -78,7 +78,7 @@ class JumpIfTrue(Instruction):
 
 @dataclass(**_cfg)
 class LoadArgument(Instruction):
-    parameter: Parameter | GenericParameter | int
+    parameter: Parameter | ParameterTemplate | int
 
     op_code = "load-argument"
     operands = ["parameter"]

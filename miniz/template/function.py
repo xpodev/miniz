@@ -2,8 +2,8 @@ from typing import Callable, TypeVar
 
 from miniz.concrete.function import Function, FunctionBody, Local
 from miniz.template.template_construction import IConstructor
-from miniz.template.function_signature import GenericFunctionSignature
-from miniz.template.signature import GenericParameter
+from miniz.template.function_signature import FunctionSignatureTemplate
+from miniz.template.signature import ParameterTemplate
 from miniz.concrete.signature import Parameter
 from miniz.interfaces.function import IFunction
 from miniz.type_system import ImplementsType, Any, ObjectProtocol
@@ -13,22 +13,22 @@ _T = TypeVar("_T")
 _GenericT = TypeVar("_GenericT")
 
 
-class GenericFunction(IFunction, IConstructor[Function]):
+class FunctionTemplate(IFunction, IConstructor[Function]):
     """
     Represents a generic Z# function. This object should not be exposed to the Z# environment.
 
     Currently, the function's body may be represented by any object, and it depends on the interpreter implementation.
     """
 
-    signature: GenericFunctionSignature
+    signature: FunctionSignatureTemplate
     body: FunctionBody  # todo: GenericFunctionBody
 
     _locals: NotifyingList[Local]
 
-    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | GenericParameter = Any):
+    def __init__(self, name: str = None, return_type: ImplementsType | Parameter | ParameterTemplate = Any):
         super().__init__()
 
-        self.signature = GenericFunctionSignature(name, return_type)
+        self.signature = FunctionSignatureTemplate(name, return_type)
 
         self.body = FunctionBody(self)
         self._locals = NotifyingList()
@@ -58,7 +58,7 @@ class GenericFunction(IFunction, IConstructor[Function]):
         return self.signature.variadic_positional_parameter
 
     @variadic_positional_parameter.setter
-    def variadic_positional_parameter(self, value: Parameter | GenericParameter | None):
+    def variadic_positional_parameter(self, value: Parameter | ParameterTemplate | None):
         self.signature.variadic_positional_parameter = value
 
     @property
@@ -66,7 +66,7 @@ class GenericFunction(IFunction, IConstructor[Function]):
         return self.signature.variadic_named_parameter
 
     @variadic_named_parameter.setter
-    def variadic_named_parameter(self, value: Parameter | GenericParameter | None):
+    def variadic_named_parameter(self, value: Parameter | ParameterTemplate | None):
         self.signature.variadic_named_parameter = value
 
     @property
@@ -79,14 +79,14 @@ class GenericFunction(IFunction, IConstructor[Function]):
 
     def construct(
             self,
-            args: dict[Parameter | GenericParameter, ObjectProtocol | Parameter | GenericParameter],
+            args: dict[Parameter | ParameterTemplate, ObjectProtocol | Parameter | ParameterTemplate],
             factory: Callable[[], _T | Function] = None,
             generic_factory: Callable[[], "_GenericT | GenericFunction"] = None
     ) -> _T | _GenericT:
         signature = self.signature.construct(args)
 
         if isinstance(signature, IConstructor):
-            result = (generic_factory or GenericFunction)()
+            result = (generic_factory or FunctionTemplate)()
         else:
             result = (factory or Function)()
 
@@ -103,12 +103,12 @@ class GenericFunction(IFunction, IConstructor[Function]):
 if __name__ == '__main__':
     from miniz.type_system import Type, Boolean
 
-    generic = GenericFunction(None, "foo")
+    generic = FunctionTemplate(None, "foo")
 
     T = Parameter("T", Type)
-    X = GenericParameter("X", T)
-    Y = GenericParameter("Y", X)
-    Z = GenericParameter("Z", X)
+    X = ParameterTemplate("X", T)
+    Y = ParameterTemplate("Y", X)
+    Z = ParameterTemplate("Z", X)
 
     generic.positional_parameters.append(T)
     generic.positional_parameters.append(X)
