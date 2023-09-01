@@ -1,3 +1,4 @@
+from miniz.generic.core import IGeneric
 from miniz.interfaces.base import INamed
 from miniz.interfaces.execution import ITarget
 from miniz.interfaces.signature import ISignature
@@ -23,7 +24,7 @@ class IFunctionSignature(ISignature, Owned["IFunction"]):
 
 
 class ILocal(ITarget["IFunction"], INamed):
-    ...
+    type: TypeProtocol
 
 
 class IFunctionBody(Owned["IFunction"]):
@@ -34,7 +35,7 @@ class IFunctionBody(Owned["IFunction"]):
         return self.instructions is not None
 
 
-class IFunction(Owned["Module"]):
+class IFunction(Owned["Module"], IGeneric):
     signature: IFunctionSignature
     locals: list[ILocal]
     body: IFunctionBody | None

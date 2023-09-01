@@ -2,6 +2,8 @@
 This module contains the `Function` class, which represents a Z# function.
 """
 from miniz.concrete.function_signature import FunctionSignature
+from miniz.generic import IGeneric
+from miniz.generic.function import GenericFunctionInstance
 from miniz.template.template_construction import IConstructor
 from miniz.interfaces.function import IFunction, ILocal, IFunctionBody
 from miniz.ownership import Owned
@@ -60,7 +62,7 @@ class Local(ILocal):
         return self.owner.locals.index(self)
 
 
-class Function(IFunction):
+class Function(IFunction, IGeneric):
     """
     Represents a Z# function. This object should not be exposed to the Z# environment.
     """
@@ -76,6 +78,7 @@ class Function(IFunction):
 
         self.signature = FunctionSignature(name, return_type)
         self.signature.owner = self
+        self.generic_signature = None
         self._body = FunctionBody(self)
         self._locals = NotifyingList()
 
@@ -141,6 +144,11 @@ class Function(IFunction):
     @return_type.setter
     def return_type(self, value: TypeProtocol):
         self.signature.return_type = value
+
+    def instantiate_generic(self, args: list[TypeProtocol]):
+        result = super().instantiate_generic(args)
+
+        return GenericFunctionInstance(self, result.generic_arguments)
 
     def __repr__(self):
         return repr(self.signature) + " {}"

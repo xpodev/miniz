@@ -3,7 +3,8 @@ from typing import Callable
 
 from miniz.concrete.function import Function, Local
 from miniz.template.signature import ParameterTemplate
-from miniz.concrete.oop import Field, Method
+# from miniz.concrete.oop import Field, Method
+from miniz.interfaces.oop import IField as Field, IMethod as Method
 from miniz.concrete.signature import Parameter
 from miniz.core import ObjectProtocol
 from miniz.vm.instruction import Instruction

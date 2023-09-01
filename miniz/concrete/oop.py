@@ -2,12 +2,19 @@ from dataclasses import dataclass
 from enum import Enum
 
 import miniz.ownership
-from miniz.concrete.function import Function
+from miniz.concrete.function import Function, FunctionBody
+from miniz.concrete.function_signature import FunctionSignature
 from miniz.concrete.overloading import OverloadGroup
+from miniz.concrete.signature import Parameter
+from miniz.generic import GenericParameter
+from miniz.generic.oop import GenericClassInstance
 from miniz.interfaces.base import ScopeProtocol
 from miniz.interfaces.function import IFunction
-from miniz.interfaces.oop import Binding, IOOPMember, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable, IOOPDefinition
+from miniz.interfaces.oop import Binding, IOOPMemberDefinition, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable, IOOPDefinition, IMethodBody, IDefinition, \
+    IOOPMemberReference, IOOPReference
 from miniz.core import TypeProtocol, ObjectProtocol
+from miniz.interfaces.overloading import Argument, OverloadMatchResult
+from miniz.vm import instructions as vm
 from utils import NotifyingList
 from zs.zs2miniz.lib import Scope
 
@@ -18,14 +25,14 @@ class Access(Enum):
     Constant = "Constant"
 
 
-class Member(IOOPMember):
+class MemberDefinition(IOOPMemberDefinition):
     def __init__(self, name: str | None, binding: Binding = Binding.Instance):
         super().__init__()
         self.name = name
         self.binding = binding
 
 
-class Field(Member, IField):
+class Field(MemberDefinition, IField):
     field_type: TypeProtocol
     default_value: ObjectProtocol | None
     access: Access
@@ -56,17 +63,54 @@ class Field(Member, IField):
         # return f"{declare} {self.name}[{self.binding.name}]: {self.type.reference_representation()}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class Method(Function, Member, IMethod):
+class MethodBody(FunctionBody, IMethodBody):
+    def __init__(self, owner: "IMethod"):
+        super().__init__(owner)
+
+    @property
+    def has_this(self):
+        return self.method.binding == Binding.Instance
+
+    @property
+    def has_cls(self):
+        return self.method.binding == Binding.Class
+
+    @property
+    def has_context(self):
+        return self.method.binding != Binding.Static
+
+    @property
+    def this_parameter(self):
+        if not self.has_this:
+            return None
+        return self.method.signature.positional_parameters[0]
+
+    @property
+    def cls_parameter(self):
+        if not self.has_cls:
+            return None
+        return self.method.signature.positional_parameters[0]
+
+    @property
+    def context_parameter(self):
+        if not self.has_context:
+            return None
+        return self.method.signature.positional_parameters[0]
+
+
+class Method(Function, MemberDefinition, IMethod):
     def __init__(self, name: str = None, return_type: TypeProtocol = None, binding: Binding = Binding.Instance):
         Function.__init__(self, name, return_type)
-        Member.__init__(self, name, binding)
+        MemberDefinition.__init__(self, name, binding)
         IMethod.__init__(self)
+
+        self._body = MethodBody(self)
 
     # def __repr__(self):
     #     return f"{self.signature} [{self.binding.name}] {{}}"
 
 
-class Property(Member, IProperty):
+class Property(MemberDefinition, IProperty):
     type: TypeProtocol
     default_value: ObjectProtocol | None
 
@@ -119,6 +163,7 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
     _fields: NotifyingList[IField]
     _methods: NotifyingList[IMethod]
     _properties: NotifyingList[IProperty]
+    _constructor: OverloadGroup[IMethod]
     _constructors: NotifyingList[IMethod]
 
     _nested_classes_and_interfaces: NotifyingList["NestedClass | NestedInterface"]
@@ -127,6 +172,8 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
         super().__init__()
         self.name = name
         self.runtime_type = IOOPDefinition.runtime_type_constructor(self)
+
+        self.generic_signature = None
 
         self._scope = Scope()
 
@@ -137,12 +184,12 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
         self._methods = NotifyingList()
         self._properties = NotifyingList()
 
-        self._constructor = OverloadGroup(f"{name or '{AnonymousClass}'}::Constructor", None, owner=self)
+        self._constructor = MethodGroup(f"{name or '{AnonymousClass}'}::Constructor", owner=self)
         self._constructor.overloads = self._constructors = NotifyingList()
 
         self._nested_classes_and_interfaces = NotifyingList()
 
-        def on_add_member(ms, member: Member):
+        def on_add_member(ms, member: MemberDefinition):
             if member.owner is not None:
                 raise TypeError
 
@@ -152,7 +199,7 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
                 if ms is not self.constructors and member.name:
                     group = self._scope.lookup_name(member.name, recursive_lookup=False, default=None)
                     if group is None:
-                        group = OverloadGroup(member.name, None, owner=self)
+                        group = MethodGroup(member.name, owner=self)
                         self._scope.create_name(group.name, group)
                     group.overloads.append(member)
                 member.owner = self
@@ -161,7 +208,7 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
                 self._scope.create_name(member.name, member)
             member.owner = self
 
-        def on_remove_member(ms, member: int | Member):
+        def on_remove_member(ms, member: int | MemberDefinition):
             if isinstance(member, int):
                 member = ms[member]
             if member.name:
@@ -261,13 +308,18 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
     def is_base_class_of(self, other: "Class"):
         return other.is_subclass_of(self)
 
-    def get_name(self, name: str) -> ObjectProtocol:
+    def get_name(self, name: str) -> IOOPMemberDefinition:
         base = self
         result = None
         while result is None and base is not None:
             result = base._scope.lookup_name(name, default=None)
             base = base.base
         return result
+
+    def instantiate_generic(self, args: list[TypeProtocol]):
+        result = super().instantiate_generic(args)
+
+        return GenericClassInstance(self, result.generic_arguments)
 
     def __repr__(self):
         return f"class {self.name or '{Anonymous}'}"
@@ -286,8 +338,8 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
 class Interface(IInterface):
     name: str | None
 
-    _members: dict[str, Member]
-    _member_list: list[Member]
+    _members: dict[str, MemberDefinition]
+    _member_list: list[MemberDefinition]
 
     _bases: list["Interface"]
 
@@ -316,7 +368,7 @@ class Interface(IInterface):
 
         self._nested_classes_and_interfaces = NotifyingList()
 
-        def on_add_member(ms, member: Member):
+        def on_add_member(ms, member: MemberDefinition):
             if ms is self._constructors:
                 if not isinstance(member, Method):
                     raise TypeError(f"Constructor must be a method, got {type(member)}")
@@ -329,7 +381,7 @@ class Interface(IInterface):
             self._member_list.append(member)
             member.owner = self
 
-        def on_remove_member(ms, member: int | Member):
+        def on_remove_member(ms, member: int | MemberDefinition):
             if isinstance(member, int):
                 member = ms[member]
             if member.name:
@@ -408,8 +460,8 @@ class TypeclassImplementation:
 class Typeclass(ITypeclass):
     name: str | None
 
-    _members: dict[str, Member]
-    _member_list: list[Member]
+    _members: dict[str, MemberDefinition]
+    _member_list: list[MemberDefinition]
 
     _bases: list["Typeclass"]
 
@@ -436,7 +488,7 @@ class Typeclass(ITypeclass):
         self._properties = NotifyingList()
         self._constructors = NotifyingList()
 
-        def on_add_member(ms, member: Member):
+        def on_add_member(ms, member: MemberDefinition):
             if ms is self._constructors:
                 if not isinstance(member, Method):
                     raise TypeError(f"Constructor must be a method, got {type(member)}")
@@ -449,7 +501,7 @@ class Typeclass(ITypeclass):
             self._member_list.append(member)
             member.owner = self
 
-        def on_remove_member(ms, member: int | Member):
+        def on_remove_member(ms, member: int | MemberDefinition):
             if isinstance(member, int):
                 member = ms[member]
             if member.name:
@@ -514,6 +566,81 @@ class Typeclass(ITypeclass):
         if members:
             return declaration + members + "\n}"
         return declaration + '}'
+
+
+class MethodGroup(OverloadGroup[IMethod], IDefinition):
+    def __init__(self, name: str, *, owner: IOOPDefinition = None):
+        OverloadGroup.__init__(self, name, None, owner=owner)
+
+    def get_reference(self, **kwargs):
+        return MethodGroupReference(self, **kwargs)
+
+
+class MethodGroupReference(IOOPMemberReference, MethodGroup):
+    overloads: list[IMethod]
+
+    def __init__(self, origin: MethodGroup, owner: IOOPReference = None):
+        IOOPMemberReference.__init__(self, origin, owner)
+        MethodGroup.__init__(self, origin.name, owner=owner)
+        self.overloads = origin.overloads
+
+    def match(
+            self,
+            positional_arguments: list[Argument],
+            named_arguments: list[tuple[str, Argument]],
+            *,
+            strict: bool = False,
+            allow_partial: bool = False,
+            recursive: bool = False,
+            type_mappings: dict[GenericParameter, TypeProtocol] = None
+    ) -> list[OverloadMatchResult[IMethod]]:
+        owner = self.owner
+        if type_mappings is None:
+            type_mappings = {}
+        if isinstance(owner, GenericClassInstance):
+            type_mappings.update(owner.generic_arguments)
+
+        result = super().match(positional_arguments, named_arguments, strict=strict, allow_partial=allow_partial, recursive=recursive)
+
+        for item in result:
+            callee = item.callee
+            item.callee = item.callee.get_reference(owner=self.owner)
+
+            if isinstance(item.call_instruction, vm.Call):
+                item.call_instruction.callee = item.callee
+            elif isinstance(item.call_instruction, vm.CreateInstance):
+                item.call_instruction.constructor = item.callee
+            else:
+                raise TypeError
+
+            signature = FunctionSignature(callee.name, type_mappings.get(callee.return_type, callee.return_type))
+
+            for parameter in callee.positional_parameters:
+                signature.positional_parameters.append(Parameter(parameter.name, type_mappings.get(parameter.parameter_type, parameter.parameter_type), parameter.default_value))
+            for parameter in callee.named_parameters:
+                signature.named_parameters.append(Parameter(parameter.name, type_mappings.get(parameter.parameter_type, parameter.parameter_type), parameter.default_value))
+
+            if callee.variadic_positional_parameter:
+                signature.variadic_positional_parameter = Parameter(
+                    callee.variadic_positional_parameter.name,
+                    type_mappings.get(
+                        callee.variadic_positional_parameter.parameter_type,
+                        callee.variadic_positional_parameter.parameter_type
+                    )
+                )
+
+            if callee.variadic_named_parameter:
+                signature.variadic_named_parameter = Parameter(
+                    callee.variadic_named_parameter.name,
+                    type_mappings.get(
+                        callee.variadic_named_parameter.parameter_type,
+                        callee.variadic_named_parameter.parameter_type
+                    )
+                )
+
+            item.callee.signature = signature
+
+        return result
 
 
 if __name__ == '__main__':

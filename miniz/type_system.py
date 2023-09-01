@@ -7,7 +7,7 @@ Objects defined in this module should not be exposed to the Z# environment.
 from miniz.concrete.oop import Class, Method
 from miniz.core import TypeProtocol, ObjectProtocol
 from miniz.interfaces.base import INamed, ScopeProtocol
-from miniz.interfaces.oop import Binding, IClass, IOOPDefinition
+from miniz.interfaces.oop import Binding, IOOPDefinition
 from miniz.vm import instructions as vm
 
 
@@ -80,13 +80,17 @@ class OOPDefinitionType(_TypeBase, ScopeProtocol):
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         if isinstance(target, OOPDefinitionType):
-            return self.definition.is_subclass_of(target.definition)
-        return target.assignable_from(self)
+            target = target.definition
+        if isinstance(target, Class):
+            return self.definition.is_subclass_of(target)
+        return super().assignable_to(target)
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
         if isinstance(source, OOPDefinitionType):
-            return source.definition.is_subclass_of(self.definition)
-        return source.assignable_to(self)
+            source = source.definition
+        if isinstance(source, Class):
+            return source.is_subclass_of(self.definition)
+        return super().assignable_from(source)
 
 
 IOOPDefinition.runtime_type_constructor = OOPDefinitionType

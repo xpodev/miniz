@@ -3,7 +3,7 @@ from typing import TypeVar, Callable, Generic
 from miniz.template.template_construction import IConstructor
 from miniz.template.function import FunctionTemplate
 from miniz.template.signature import ParameterTemplate, SignatureTemplate, GenericArguments
-from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, Member
+from miniz.concrete.oop import Binding, Access, Method, Field, Property, Class, Typeclass, Interface, MemberDefinition
 from miniz.concrete.signature import Parameter, Signature
 from miniz.interfaces.oop import IField, IMethod, IProperty, IOOPDefinition
 from miniz.type_system import TypeProtocol, ObjectProtocol, Any
@@ -32,14 +32,14 @@ def order_arguments(args: GenericArguments, signature: Signature | SignatureTemp
     return tuple(ordered)
 
 
-class FieldTemplate(Member, IConstructor[Field], IField):
+class FieldTemplate(MemberDefinition, IConstructor[Field], IField):
     field_type: TypeProtocol | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
     access: Access
 
     def __init__(self, name: str, type: TypeProtocol | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance,
                  access: Access = Access.ReadWrite):
-        Member.__init__(self, name, binding)
+        MemberDefinition.__init__(self, name, binding)
         IField.__init__(self)
         self.field_type = type
         self.default_value = default_value
@@ -74,11 +74,11 @@ class FieldTemplate(Member, IConstructor[Field], IField):
         # return f"{declare} {self.name}[{self.binding.name}]: {self.field_type}" + (f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
-class MethodTemplate(FunctionTemplate, IMethod, Member):
+class MethodTemplate(FunctionTemplate, IMethod, MemberDefinition):
     def __init__(self, name: str = None, return_type: TypeProtocol | Parameter | ParameterTemplate = Any, binding: Binding = Binding.Instance):
         FunctionTemplate.__init__(self, name, return_type)
         IMethod.__init__(self)
-        Member.__init__(self, name, binding)
+        MemberDefinition.__init__(self, name, binding)
 
     def construct(self, args: dict[Parameter, ObjectProtocol], factory=None, generic_factory=None) -> "Method | GenericMethod":
         result = super().construct(args, factory=Method, generic_factory=MethodTemplate)
@@ -91,7 +91,7 @@ class MethodTemplate(FunctionTemplate, IMethod, Member):
         return f"{self.signature} [{self.binding.name}] {{}}"
 
 
-class PropertyTemplate(Member, IConstructor[Property], IProperty):
+class PropertyTemplate(MemberDefinition, IConstructor[Property], IProperty):
     property_type: TypeProtocol | Parameter | ParameterTemplate
     default_value: ObjectProtocol | None
 
@@ -99,7 +99,7 @@ class PropertyTemplate(Member, IConstructor[Property], IProperty):
     _setter: MethodTemplate | None
 
     def __init__(self, name: str, type: TypeProtocol | Parameter | ParameterTemplate = Any, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
-        Member.__init__(self, name, binding)
+        MemberDefinition.__init__(self, name, binding)
         IProperty.__init__(self)
 
         self.property_type = type
@@ -147,8 +147,8 @@ class PropertyTemplate(Member, IConstructor[Property], IProperty):
 
 
 class OOPObjectTemplate(IOOPDefinition, IConstructor["ConstructedClass | ConstructedInterface | ConstructedTypeclass"]):
-    _members: dict[str, Member]
-    _member_list: list[Member]
+    _members: dict[str, MemberDefinition]
+    _member_list: list[MemberDefinition]
 
     _fields: NotifyingList[FieldTemplate | Field]
     _methods: NotifyingList[MethodTemplate | Method]
@@ -190,7 +190,7 @@ class OOPObjectTemplate(IOOPDefinition, IConstructor["ConstructedClass | Constru
 
         self._nested_definitions = NotifyingList()
 
-        def on_add_member(ms, member: Member):
+        def on_add_member(ms, member: MemberDefinition):
             if ms is self._constructors:
                 if not isinstance(member, Method):
                     raise TypeError(f"Constructor must be a method, got {type(member)}")
@@ -203,7 +203,7 @@ class OOPObjectTemplate(IOOPDefinition, IConstructor["ConstructedClass | Constru
             self._member_list.append(member)
             member.owner = self
 
-        def on_remove_member(ms, member: int | Member):
+        def on_remove_member(ms, member: int | MemberDefinition):
             if isinstance(member, int):
                 member = ms[member]
             if member.name:

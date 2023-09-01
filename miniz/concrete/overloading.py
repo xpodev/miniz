@@ -1,15 +1,12 @@
-import typing
 from typing import Generic, TypeVar
 
 from miniz.core import TypeProtocol
-from miniz.interfaces.base import INamed, ScopeProtocol
-from miniz.interfaces.function import IFunction
+from miniz.generic import GenericParameter
+from miniz.interfaces.base import INamed
+from miniz.interfaces.overloading import Argument, OverloadMatchResult, IOverloaded
 from miniz.ownership import Owned
 
-if typing.TYPE_CHECKING:
-    from miniz.type_system import TypeProtocol
-
-_T = TypeVar("_T", bound=IFunction)
+_T = TypeVar("_T", bound=IOverloaded)
 
 
 class OverloadGroupType(TypeProtocol):
@@ -113,3 +110,40 @@ class OverloadGroup(Owned, INamed, Generic[_T]):
             overloads.append(overload)
 
         return overloads
+
+    def match(
+            self,
+            positional_arguments: list[Argument],
+            named_arguments: list[tuple[str, Argument]],
+            *,
+            strict: bool = False,
+            allow_partial: bool = False,
+            recursive: bool = False,
+            type_mappings: dict[GenericParameter, TypeProtocol] = None
+    ) -> list[OverloadMatchResult[_T]]:
+        if recursive:
+            result = self.match(positional_arguments, named_arguments, strict=strict, recursive=False, type_mappings=type_mappings)
+
+            if not result:
+                if self.parent:
+                    return self.parent.match(positional_arguments, named_arguments, strict=strict, recursive=True, type_mappings=type_mappings)
+                return []
+
+            return result
+
+        result = []
+
+        if allow_partial:
+            for overload in self.overloads:
+                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings)
+
+                if match is not None:
+                    result.append(match)
+        else:
+            for overload in self.overloads:
+                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings)
+
+                if match is not None and match.is_full_match:
+                    result.append(match)
+
+        return result

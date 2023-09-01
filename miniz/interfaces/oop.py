@@ -3,8 +3,10 @@ from enum import Enum
 from typing import Callable
 
 from miniz.concrete.overloading import OverloadGroup
+from miniz.generic import IGeneric
 from miniz.interfaces.base import INamed
-from miniz.interfaces.function import IFunction
+from miniz.interfaces.function import IFunction, IFunctionBody
+from miniz.interfaces.signature import IParameter
 from miniz.ownership import Owned
 from miniz.core import TypeProtocol
 
@@ -15,7 +17,33 @@ class Binding(Enum):
     Instance = "Instance"
 
 
-class IOOPMember(Owned["IOOPDefinition"], INamed):
+class IDefinition:
+    """
+    Represents a definition object. A definition object holds actual object data. Modifying this object
+    results in modifying the original object, as this object represents the original object.
+    """
+
+    def get_reference(self, **kwargs) -> "IReference":
+        """
+        :param kwargs: Additional keyword arguments to pass to the reference constructor.
+        :return: a reference object which refers to this object.
+        """
+        raise NotImplementedError
+
+
+class IReference:
+    """
+    Represents a reference to a definition object. Inheritors may add more information as they see fit.
+    Modifying this object will not modify the original.
+    """
+
+    def get_definition(self) -> "IDefinition":
+        """
+        :return: The object definition which this object refers to.
+        """
+
+
+class IOOPMemberDefinition(Owned["IOOPDefinition"], IDefinition, INamed):
     binding: Binding
 
     @property
@@ -30,22 +58,71 @@ class IOOPMember(Owned["IOOPDefinition"], INamed):
     def is_static_bound(self):
         return self.binding == Binding.Static
 
+    def get_reference(self, **kwargs) -> "IReference":
+        return IOOPMemberReference(self, **kwargs)
 
-class IField(IOOPMember):
+
+class IOOPMemberReference(Owned["IOOPReference"], IReference, INamed):
+    _definition: IOOPMemberDefinition | IDefinition
+
+    def __init__(self, origin: IOOPMemberDefinition | IDefinition, owner: "IOOPReference" = None):
+        Owned.__init__(self, owner=owner or origin.owner)
+        self._definition = origin
+
+    @property
+    def binding(self):
+        return self._definition.binding
+
+    @property
+    def name(self):
+        return self._definition.name
+
+    @name.setter
+    def name(self, value: str):
+        ...
+
+    def get_definition(self) -> "IDefinition":
+        return self._definition
+
+
+class IField(IOOPMemberDefinition):
     field_type: TypeProtocol
 
 
-class IMethod(IOOPMember, IFunction):
-    ...
+class IMethodBody(IFunctionBody):
+    has_this: bool
+    has_cls: bool
+    has_context: bool
+    this_parameter: IParameter | None
+    cls_parameter: IParameter | None
+    context_parameter: IParameter | None
+
+    @property
+    def method(self) -> "IMethod | None":
+        return self.owner
 
 
-class IProperty(IOOPMember):
+class IMethod(IOOPMemberDefinition, IFunction):
+    body: IMethodBody
+
+
+class IProperty(IOOPMemberDefinition):
     property_type: TypeProtocol
     getter: IMethod | None
     setter: IMethod | None
 
 
-class IOOPDefinition(IOOPMember, TypeProtocol):
+class IOOPReference(IOOPMemberReference, TypeProtocol):
+    _definition: "IOOPDefinition"
+
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        return self.origin.assignable_to(target)
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        return self.origin.assignable_from(source)
+
+
+class IOOPDefinition(IOOPMemberDefinition, IGeneric, TypeProtocol):
     fields: list[IField]
     methods: list[IMethod]
     properties: list[IProperty]
