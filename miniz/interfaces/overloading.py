@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from miniz.core import TypeProtocol
@@ -9,6 +10,7 @@ from typeclass import Typeclass, typeclass_api
 _T = TypeVar("_T", bound="IOverloaded")
 
 
+@dataclass(slots=True)
 class Argument:
     code: list[Instruction]
     type: TypeProtocol

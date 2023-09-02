@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from miniz.concrete.function import Function, Local
+from miniz.interfaces.function import IFunction
 from miniz.template.signature import ParameterTemplate
-# from miniz.concrete.oop import Field, Method
-from miniz.interfaces.oop import IField as Field, IMethod as Method
+from miniz.interfaces.oop import IField, IMethod
 from miniz.concrete.signature import Parameter
 from miniz.core import ObjectProtocol
 from miniz.vm.instruction import Instruction
@@ -13,6 +13,10 @@ _cfg = {
     "slots": True,
     "unsafe_hash": True
 }
+
+
+class ICallInstruction:
+    callee: IFunction
 
 
 @dataclass(**_cfg)
@@ -38,15 +42,18 @@ class Call(Instruction):
 
 @dataclass(**_cfg)
 class CreateInstance(Instruction):
-    constructor: Method
+    constructor: IMethod
 
     op_code = "create-instance"
     operands = ["constructor"]
 
+    @property
+    def callee(self):
+        return self.constructor
 
-# @dataclass(**_cfg)
-# class DynamicNameLookup(Instruction):
-#     name: str
+    @callee.setter
+    def callee(self, value):
+        self.constructor = value
 
 
 class DuplicateTop(Instruction):
@@ -87,7 +94,7 @@ class LoadArgument(Instruction):
 
 @dataclass(**_cfg)
 class LoadField(Instruction):
-    field: Field
+    field: IField
 
     op_code = "load-field"
     operands = ["field"]
@@ -151,7 +158,7 @@ class SetArgument(Instruction):
 
 @dataclass(**_cfg)
 class SetField(Instruction):
-    field: Field
+    field: IField
 
     op_code = "set-field"
     operands = ["field"]

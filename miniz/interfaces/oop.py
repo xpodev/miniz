@@ -115,11 +115,14 @@ class IProperty(IOOPMemberDefinition):
 class IOOPReference(IOOPMemberReference, TypeProtocol):
     _definition: "IOOPDefinition"
 
+    def get_definition(self) -> "IOOPDefinition":
+        return self._definition
+
     def assignable_to(self, target: "TypeProtocol") -> bool:
-        return self.origin.assignable_to(target)
+        return self.get_definition().assignable_to(target)
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
-        return self.origin.assignable_from(source)
+        return self.get_definition().assignable_from(source)
 
 
 class IOOPDefinition(IOOPMemberDefinition, IGeneric, TypeProtocol):

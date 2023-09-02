@@ -83,7 +83,7 @@ class OOPDefinitionType(_TypeBase, ScopeProtocol):
             target = target.definition
         if isinstance(target, Class):
             return self.definition.is_subclass_of(target)
-        return super().assignable_to(target)
+        return target.assignable_from(self)
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
         if isinstance(source, OOPDefinitionType):
@@ -127,11 +127,11 @@ class _Unit(_TypeBase):
 
         self.UnitInstance = self._Unit(self)
 
-        constructor = Method(return_type=self, binding=Binding.Static)
-        constructor.body.instructions.extend([
-            vm.LoadObject(self.UnitInstance),
-            vm.Return()
-        ])
+        # constructor = Method(return_type=self, binding=Binding.Static)
+        # constructor.body.instructions.extend([
+        #     vm.LoadObject(self.UnitInstance),
+        #     vm.Return()
+        # ])
 
         # self.constructors.append(constructor)
         # self.fields.append(Field("unit", self, self.UnitInstance, Binding.Static, Access.Constant))
