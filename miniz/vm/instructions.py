@@ -19,8 +19,12 @@ class ICallInstruction:
     callee: IFunction
 
 
+class IJumpInstruction:
+    target: Instruction
+
+
 @dataclass(**_cfg)
-class CallNative(Instruction):
+class CallNative(Instruction, ICallInstruction):
     callee: Callable
 
     op_code = "call-native"
@@ -28,7 +32,7 @@ class CallNative(Instruction):
 
 
 @dataclass(**_cfg)
-class Call(Instruction):
+class Call(Instruction, ICallInstruction):
     """
     The `call` instruction.
 
@@ -41,7 +45,7 @@ class Call(Instruction):
 
 
 @dataclass(**_cfg)
-class CreateInstance(Instruction):
+class CreateInstance(Instruction, ICallInstruction):
     constructor: IMethod
 
     op_code = "create-instance"
@@ -61,7 +65,7 @@ class DuplicateTop(Instruction):
 
 
 @dataclass(**_cfg)
-class Jump(Instruction):
+class Jump(Instruction, IJumpInstruction):
     target: Instruction
 
     op_code = "jump"
@@ -69,7 +73,7 @@ class Jump(Instruction):
 
 
 @dataclass(**_cfg)
-class JumpIfFalse(Instruction):
+class JumpIfFalse(Instruction, IJumpInstruction):
     target: Instruction
 
     op_code = "jump-if-false"
@@ -77,7 +81,7 @@ class JumpIfFalse(Instruction):
 
 
 @dataclass(**_cfg)
-class JumpIfTrue(Instruction):
+class JumpIfTrue(Instruction, IJumpInstruction):
     target: Instruction
 
     op_code = "jump-if-true"
