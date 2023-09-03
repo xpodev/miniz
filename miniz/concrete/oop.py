@@ -591,15 +591,16 @@ class MethodGroupReference(IOOPMemberReference, MethodGroup):
             strict: bool = False,
             allow_partial: bool = False,
             recursive: bool = False,
-            type_mappings: dict[GenericParameter, TypeProtocol] = None
-    ) -> list[OverloadMatchResult[IMethod]]:
+            type_mappings: dict[GenericParameter, TypeProtocol] = None,
+            **kwargs
+    ) -> list[OverloadMatchResult[IOOPReference]]:
         owner = self.owner
         if type_mappings is None:
             type_mappings = {}
         if isinstance(owner, GenericClassInstance):
             type_mappings.update(owner.generic_arguments)
 
-        result = super().match(positional_arguments, named_arguments, strict=strict, allow_partial=allow_partial, recursive=recursive)
+        result = super().match(positional_arguments, named_arguments, strict=strict, allow_partial=allow_partial, recursive=recursive, **kwargs)
 
         for item in result:
             callee = item.callee

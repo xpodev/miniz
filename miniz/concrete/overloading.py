@@ -119,14 +119,15 @@ class OverloadGroup(Owned, INamed, Generic[_T]):
             strict: bool = False,
             allow_partial: bool = False,
             recursive: bool = False,
-            type_mappings: dict[GenericParameter, TypeProtocol] = None
+            type_mappings: dict[GenericParameter, TypeProtocol] = None,
+            **kwargs
     ) -> list[OverloadMatchResult[_T]]:
         if recursive:
-            result = self.match(positional_arguments, named_arguments, strict=strict, recursive=False, type_mappings=type_mappings)
+            result = self.match(positional_arguments, named_arguments, strict=strict, recursive=False, type_mappings=type_mappings, **kwargs)
 
             if not result:
                 if self.parent:
-                    return self.parent.match(positional_arguments, named_arguments, strict=strict, recursive=True, type_mappings=type_mappings)
+                    return self.parent.match(positional_arguments, named_arguments, strict=strict, recursive=True, type_mappings=type_mappings, **kwargs)
                 return []
 
             return result
@@ -135,13 +136,13 @@ class OverloadGroup(Owned, INamed, Generic[_T]):
 
         if allow_partial:
             for overload in self.overloads:
-                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings)
+                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings, **kwargs)
 
                 if match is not None:
                     result.append(match)
         else:
             for overload in self.overloads:
-                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings)
+                match = overload.match(positional_arguments, named_arguments, strict=strict, type_mappings=type_mappings, **kwargs)
 
                 if match is not None and match.is_full_match:
                     result.append(match)

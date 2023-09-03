@@ -50,5 +50,13 @@ class OverloadMatchResult(Generic[_T]):
 
 class IOverloaded(Typeclass):
     @typeclass_api
-    def match(self, args: list[Argument], kwargs: list[tuple[str, Argument]], *, strict: bool = False, type_mappings: dict[GenericParameter, TypeProtocol] = None) -> OverloadMatchResult | None:
+    def match(
+            self,
+            positional_arguments: list[Argument],
+            named_arguments: list[tuple[str, Argument]],
+            *,
+            strict: bool = False,
+            type_mappings: dict[GenericParameter, TypeProtocol] = None,
+            **kwargs
+    ) -> OverloadMatchResult | None:
         raise NotImplementedError
