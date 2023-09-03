@@ -2,10 +2,10 @@ from typing import TypeVar
 
 from miniz.concrete.function import Function
 from miniz.concrete.overloading import OverloadGroup
-from miniz.core import TypeProtocol
+from miniz.core import TypeProtocol, ScopeProtocol
 from miniz.template.oop import ConstructedClass, ConstructedInterface, ConstructedTypeclass
 from miniz.concrete.oop import Class, Interface, Typeclass
-from miniz.interfaces.base import INamed, ScopeProtocol
+from miniz.interfaces.base import INamed
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.module import IModule, IModuleAPI, IGlobal
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure

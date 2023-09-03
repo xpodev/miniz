@@ -8,11 +8,10 @@ from miniz.concrete.overloading import OverloadGroup
 from miniz.concrete.signature import Parameter
 from miniz.generic import GenericParameter
 from miniz.generic.oop import GenericClassInstance
-from miniz.interfaces.base import ScopeProtocol
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.oop import Binding, IOOPMemberDefinition, IField, IMethod, IProperty, IClass, IInterface, ITypeclass, OOPImplementable, IOOPDefinition, IMethodBody, IDefinition, \
     IOOPMemberReference, IOOPReference
-from miniz.core import TypeProtocol, ObjectProtocol
+from miniz.core import TypeProtocol, ObjectProtocol, ScopeProtocol
 from miniz.interfaces.overloading import Argument, OverloadMatchResult
 from miniz.vm import instructions as vm
 from utils import NotifyingList

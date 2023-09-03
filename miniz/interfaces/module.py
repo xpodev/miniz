@@ -1,5 +1,5 @@
-from miniz.core import TypeProtocol, ObjectProtocol
-from miniz.interfaces.base import INamed, ScopeProtocol
+from miniz.core import TypeProtocol, ObjectProtocol, ScopeProtocol
+from miniz.interfaces.base import INamed
 from miniz.interfaces.function import IFunction
 from miniz.interfaces.oop import IClass, IInterface, ITypeclass, IStructure
 from miniz.ownership import Owned

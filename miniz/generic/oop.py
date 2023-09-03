@@ -1,8 +1,7 @@
 import typing
 
-from miniz.core import TypeProtocol, ObjectProtocol
+from miniz.core import TypeProtocol, ObjectProtocol, ScopeProtocol
 from miniz.generic import GenericInstance
-from miniz.interfaces.base import ScopeProtocol
 from miniz.interfaces.oop import IClass, IOOPMemberDefinition, IOOPReference
 from miniz.interfaces.signature import IParameter
 

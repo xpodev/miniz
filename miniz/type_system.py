@@ -5,8 +5,8 @@ Objects defined in this module should not be exposed to the Z# environment.
 """
 
 from miniz.concrete.oop import Class, Method
-from miniz.core import TypeProtocol, ObjectProtocol
-from miniz.interfaces.base import INamed, ScopeProtocol
+from miniz.core import TypeProtocol, ObjectProtocol, ScopeProtocol
+from miniz.interfaces.base import INamed
 from miniz.interfaces.oop import Binding, IOOPDefinition
 from miniz.vm import instructions as vm
 

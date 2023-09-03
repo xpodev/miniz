@@ -16,3 +16,16 @@ class TypeProtocol(ObjectProtocol):
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
         raise NotImplementedError
+
+
+class ScopeProtocol:
+    """
+    Represents a scope
+    """
+
+    def get_name(self, name: str) -> ObjectProtocol:
+        """
+        Returns the value associated with the given `name` in this scope.
+
+        :raises NameNotFoundError: if the given name could not be found.
+        """
