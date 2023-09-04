@@ -110,7 +110,7 @@ class Method(Function, MemberDefinition, IMethod):
 
 
 class Property(MemberDefinition, IProperty):
-    type: TypeProtocol
+    property_type: TypeProtocol
     default_value: ObjectProtocol | None
 
     _getter: Method | None
@@ -119,7 +119,7 @@ class Property(MemberDefinition, IProperty):
     def __init__(self, name: str, type: TypeProtocol = None, default_value: ObjectProtocol = None, binding: Binding = Binding.Instance):
         super().__init__(name, binding)
         IProperty.__init__(self)
-        self.type = type
+        self.property_type = type
         self.default_value = default_value
 
         self._getter = self._setter = None
