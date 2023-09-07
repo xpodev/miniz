@@ -48,10 +48,14 @@ class GenericClassInstance(GenericInstance[IClass], ScopeProtocol, IOOPReference
         self.runtime_type = GenericClassInstanceType(self)
 
     def assignable_from(self, source: "TypeProtocol") -> bool:
-        ...
+        if not isinstance(source, GenericClassInstance):
+            return source.assignable_to(self)
+        return source.origin == self.origin and self.generic_arguments == source.generic_arguments
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
-        ...
+        if not isinstance(target, GenericClassInstance):
+            return target.assignable_from(self)
+        return target.origin == self.origin and self.generic_arguments == target.generic_arguments
 
     def get_name(self, name: str):
         result = self.origin.get_name(name)
