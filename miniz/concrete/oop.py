@@ -283,7 +283,14 @@ class Class(IClass, TypeProtocol, ScopeProtocol):
     def assignable_from(self, source: "TypeProtocol") -> bool:
         if isinstance(source, Class):
             return source.is_subclass_of(self)
-        return bool(self.constructor.get_match([self, source], [], strict=True, recursive=False))
+        elif bool(self.constructor.get_match([self, source], [], strict=True, recursive=False)):
+            return True
+        else:
+            base = self.base
+            while base is not None:
+                if base.assignable_from(source):
+                    return True
+            return False
 
     def assignable_to(self, target: "TypeProtocol") -> bool:
         if isinstance(target, Class):
