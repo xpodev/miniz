@@ -25,8 +25,15 @@ class FunctionBody(IFunctionBody):
                 raise TypeError(f"A normal function's body may only contain instructions")
             if isinstance(inst, IConstructor):
                 raise TypeError(f"A normal function may not contain generic instructions")
+            inst.index = len(self.instructions)
+
+        def on_add_instructions(_, insts: list[Instruction]):
+            base = len(self.instructions)
+            for i in range(len(insts)):
+                insts[i].index = base + i
 
         self._instructions.append += on_add_instruction
+        self._instructions.extend += on_add_instructions
 
     @property
     def owner(self):
