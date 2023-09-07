@@ -74,6 +74,10 @@ class NotifyingList(list[_T], Generic[_T]):
         return super().append(__object)
 
     @event
+    def extend(self, __iterable: Iterable[_T]) -> None:
+        return super().extend(__iterable)
+
+    @event
     def remove(self, __value: _T) -> None:
         return super().remove(__value)
 
