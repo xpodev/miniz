@@ -144,6 +144,14 @@ class NoOperation(Instruction):
     op_code = "nop"
 
 
+class Pop(Instruction):
+    """
+    The `pop` instruction
+    """
+
+    op_code = "pop"
+
+
 class Return(Instruction):
     """
     The `return` instruction.
