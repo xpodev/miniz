@@ -11,7 +11,7 @@ from miniz.vm.instruction import Instruction
 
 _cfg = {
     "slots": True,
-    "unsafe_hash": True
+    "eq": False
 }
 
 
