@@ -362,6 +362,8 @@ class Interface(IInterface):
         super().__init__()
         self.name = name
 
+        self.generic_signature = None
+
         self._members = {}
         self._member_list = []
 
