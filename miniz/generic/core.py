@@ -56,11 +56,25 @@ class GenericInstance(ObjectProtocol, Generic[_T]):
         return self._instantiation_arguments
 
 
+class GenericParameterType(TypeProtocol):
+    definition: "GenericParameter"
+
+    def __init__(self, definition: "GenericParameter"):
+        self.definition = definition
+
+    def assignable_to(self, target: "TypeProtocol") -> bool:
+        return target is self.definition
+
+    def assignable_from(self, source: "TypeProtocol") -> bool:
+        return source is self.definition
+
+
 class GenericParameter(IParameter, TypeProtocol):
     def __init__(self, name: str):
         super().__init__()
 
         self.name = name
+        self.runtime_type = GenericParameterType(self)
 
     @property
     def parameter_type(self):
