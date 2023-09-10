@@ -48,7 +48,7 @@ class TypeStack:
         return self.pop_type(value.target_type)
 
     def pop_type(self, value: TypeProtocol):
-        if not assignable_to(value, self.top()):
+        if not assignable_to(self.top(), value):
             raise TypeError
         return self.pop()
 
