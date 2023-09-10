@@ -15,6 +15,7 @@ class Binding(Enum):
     Static = "Static"
     Class = "Class"
     Instance = "Instance"
+    Virtual = "Virtual"
 
 
 class IDefinition:
@@ -57,6 +58,10 @@ class IOOPMemberDefinition(Owned["IOOPDefinition"], IDefinition, INamed):
     @property
     def is_static_bound(self):
         return self.binding == Binding.Static
+
+    @property
+    def is_virtual_bound(self):
+        return self.binding == Binding.Virtual
 
     def get_reference(self, **kwargs) -> "IReference":
         return IOOPMemberReference(self, **kwargs)
