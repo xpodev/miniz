@@ -145,7 +145,7 @@ class Property(MemberDefinition, IProperty):
         self._setter = value
 
     def __repr__(self):
-        return f"let {self.name}[{self.binding.name}]: {self.type} => {{{f' get = {self._getter.name};' if self._getter else ''}{f' set = {self._setter.name};' if self._setter else ''} }}" + (
+        return f"let {self.name}[{self.binding.name}]: {self.property_type} => {{{f' get = {self._getter.name};' if self._getter else ''}{f' set = {self._setter.name};' if self._setter else ''} }}" + (
             f" = {self.default_value}" if self.default_value is not None else '') + ';'
 
 
